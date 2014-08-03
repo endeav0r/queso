@@ -1,4 +1,4 @@
-OBJS = queso.o memory.o x86queso.o generic_instructions.o
+OBJS = queso.o x86queso.o generic_instructions.o
 
 CXXFLAGS = -g -Werror -Wall -std=c++11
 INCLUDE = -ludis86
@@ -13,3 +13,4 @@ test_x86queso : $(OBJS) test_x86queso.cc
 
 clean :
 	rm -f *.o
+	rm test_x86queso

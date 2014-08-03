@@ -34,6 +34,11 @@ class QuesoX86 {
             return cmovcc(&condition);
         }
 
+        bool jcc (const Operand * condition);
+        bool jcc (const Operand & condition) {
+            return jcc(&condition);
+        }
+
         bool add ();
         bool And ();
         bool cmova ();
@@ -44,6 +49,32 @@ class QuesoX86 {
         bool cmovz ();
         bool cmp ();
         bool cwde ();
+        bool dec ();
+        bool inc ();
+        bool ja ();
+        bool jae ();
+        bool jb ();
+        bool jbe ();
+        bool jg ();
+        bool jge ();
+        bool jl ();
+        bool jle ();
+        bool jmp ();
+        bool jns ();
+        bool jnz ();
+        bool js ();
+        bool jz ();
+        bool lea ();
+        bool leave ();
+        bool mov ();
+        bool movd ();
+        bool movsd ();
+        bool nop ();
+        bool Not ();
+        bool Or ();
+        bool pop ();
+        bool push ();
+
     public :
         QuesoX86 () {ix86 = NULL;}
         Instruction * translate (const uint8_t * data, size_t size, uint64_t address);

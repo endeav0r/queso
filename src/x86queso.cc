@@ -24,8 +24,38 @@ Instruction * QuesoX86 :: translate (const uint8_t * data, size_t size, uint64_t
     ix86 = new InstructionX86(ud_insn_asm(&ud_obj));
 
     switch (ud_obj.mnemonic) {
-    case UD_Iadd : add(); break;
-    case UD_Iand : And(); break;
+    case UD_Iadd    : add(); break;
+    case UD_Iand    : And(); break;
+    case UD_Icmova  : cmova(); break;
+    case UD_Icmovb  : cmovb(); break;
+    case UD_Icmovbe : cmovbe(); break;
+    case UD_Icmovnz : cmovnz(); break;
+    case UD_Icmovs  : cmovs(); break;
+    case UD_Icmovz  : cmovz(); break;
+    case UD_Icmp    : cmp(); break;
+    case UD_Icwde   : cwde(); break;
+    case UD_Idec    : dec(); break;
+    case UD_Iinc    : inc(); break;
+    case UD_Ija     : ja(); break;
+    case UD_Ijae    : jae(); break;
+    case UD_Ijb     : jb(); break;
+    case UD_Ijbe    : jbe(); break;
+    case UD_Ijg     : jg(); break;
+    case UD_Ijl     : jl(); break;
+    case UD_Ijle    : jle(); break;
+    case UD_Ijmp    : jmp(); break;
+    case UD_Ijns    : jns(); break;
+    case UD_Ijnz    : jnz(); break;
+    case UD_Ijs     : js(); break;
+    case UD_Ijz     : jz(); break;
+    case UD_Ilea    : lea(); break;
+    case UD_Ileave  : leave(); break;
+    case UD_Imov    : mov(); break;
+    case UD_Imovd   : movd(); break;
+    case UD_Imovsd  : movsd(); break;
+    case UD_Inop    : nop(); break;
+    case UD_Inot    : Not(); break;
+    case UD_Ior     : Or(); break;
     default :
         break;
     }
@@ -268,6 +298,25 @@ bool QuesoX86 :: cmovcc (const Operand * condition) {
     return true;
 }
 
+
+bool QuesoX86 :: jcc (const Operand * condition) {
+    Variable eip(32, "eip");
+    if (ud_obj.operand[0].type == UD_OP_JIMM) {
+        Variable tmp(32, "tmp");
+
+        ix86->pdi(new InstructionSignExtend(&tmp, &eip));
+        ix86->pdi(new InstructionAdd(&tmp, &eip, &tmp));
+        ix86->pdi(new InstructionIte(&eip, condition, &tmp, &eip));
+    }
+    else {
+        Operand * dst = operandGet(0);
+
+        ix86->pdi(new InstructionIte(&eip, condition, dst, &eip));
+    }
+
+    return true;
+}
+
     
 bool QuesoX86 :: add () {
     Operand * lhs = operandGet(0);
@@ -421,6 +470,315 @@ bool QuesoX86 :: cwde () {
     Variable eax = getRegister(UD_R_EAX);
 
     ix86->pdi(new InstructionSignExtend(eax, ax));
+
+    return true;
+}
+
+
+bool QuesoX86 :: dec () {
+    Operand * lhs = operandGet(0);
+
+    Variable tmp(lhs->g_bits(), "tmp");
+    Constant one(lhs->g_bits(), 1);
+
+    Variable ZF(1, "ZF");
+    Variable SF(1, "SF");
+    Variable OF(1, "OF");
+    Variable SFxorOF(1, "SFxorOF");
+    Constant zero(lhs->g_bits(), 0);
+
+    ix86->pdi(new InstructionSub(&tmp, lhs, &one));
+
+    ix86->pdi(new InstructionCmpLts(&SF, &tmp, &zero));
+    ix86->pdi(new InstructionCmpEq(&ZF, &tmp, &zero));
+    ix86->pdi(new InstructionCmpLts(&SFxorOF, &tmp, lhs));
+    ix86->pdi(new InstructionXor(&OF, &SFxorOF, &SF));
+
+    operandSet(0, &tmp);
+
+    delete lhs;
+
+    return true;
+}
+
+
+bool QuesoX86 :: inc () {
+    Operand * lhs = operandGet(0);
+
+    Variable tmp(lhs->g_bits(), "tmp");
+    Constant one(lhs->g_bits(), 1);
+
+    Variable ZF(1, "ZF");
+    Variable SF(1, "SF");
+    Variable OF(1, "OF");
+    Variable SFxorOF(1, "SFxorOF");
+    Constant zero(lhs->g_bits(), 0);
+
+    ix86->pdi(new InstructionAdd(&tmp, lhs, &one));
+
+    ix86->pdi(new InstructionCmpLts(&SF, &tmp, &zero));
+    ix86->pdi(new InstructionCmpEq(&ZF, &tmp, &zero));
+    ix86->pdi(new InstructionCmpLts(&SFxorOF, &tmp, lhs));
+    ix86->pdi(new InstructionXor(&OF, &SFxorOF, &SF));
+
+    operandSet(0, &tmp);
+
+    delete lhs;
+
+    return true;
+}
+
+
+bool QuesoX86 :: ja () {
+    Variable CF(1, "CF");
+    Variable ZF(1, "ZF");
+    Variable CForZF(1, "CForZF");
+    Variable notCForZF(1, "notCForZF");
+    Constant one(1, 1);
+
+    ix86->pdi(new InstructionOr(&CForZF, &CF, &ZF));
+    ix86->pdi(new InstructionXor(&notCForZF, &CForZF, &one));
+
+    return jcc(notCForZF);
+}
+
+
+bool QuesoX86 :: jae () {
+    Variable CF(1, "CF");
+    Variable notCF(1, "notCF");
+    Constant one(1, 1);
+
+    ix86->pdi(new InstructionXor(&notCF, &CF, &one));
+
+    return jcc(&notCF);
+}
+
+
+bool QuesoX86 :: jb () {
+    return jcc(Variable(1, "CF"));
+}
+
+
+bool QuesoX86 :: jbe () {
+    Variable CF(1, "CF");
+    Variable ZF(1, "ZF");
+    Variable CForZF(1, "CForZF");
+
+    ix86->pdi(new InstructionOr(&CForZF, &CF, &ZF));
+
+    return jcc(&CForZF);
+}
+
+
+bool QuesoX86 :: jg () {
+    Variable SF(1, "SF");
+    Variable OF(1, "OF");
+    Variable SFeqOF(1, "SFeqOF");
+    Variable ZF(1, "ZF");
+    Variable notZF(1, "notZF");
+    Variable notZFandSFeqOF(1, "notZFandSFeqOF");
+    Constant one(1, 1);
+
+    ix86->pdi(new InstructionCmpEq(&SFeqOF, &SF, &OF));
+    ix86->pdi(new InstructionXor(&notZF, &ZF, &one));
+    ix86->pdi(new InstructionAnd(&notZFandSFeqOF, &notZF, &SFeqOF));
+
+    return jcc(&notZFandSFeqOF);
+}
+
+
+bool QuesoX86 :: jge () {
+    Variable SF(1, "SF");
+    Variable OF(1, "OF");
+    Variable SFeqOF(1, "SFeqOF");
+
+    ix86->pdi(new InstructionCmpEq(&SFeqOF, &SF, &OF));
+
+    return jcc(&SFeqOF);
+}
+
+
+bool QuesoX86 :: jl () {
+    Variable SF(1, "SF");
+    Variable OF(1, "OF");
+    Variable SFxorOF(1, "SFxorOF");
+
+    ix86->pdi(new InstructionXor(&SFxorOF, &SF, &OF));
+
+    return jcc(&SFxorOF);
+}
+
+
+bool QuesoX86 :: jle () {
+    Variable ZF(1, "ZF");
+    Variable SF(1, "SF");
+    Variable OF(1, "OF");
+    Variable ZForSFxorOF(1, "ZForSFxorOF");
+
+    ix86->pdi(new InstructionXor(&ZForSFxorOF, &SF, &OF));
+    ix86->pdi(new InstructionOr(&ZForSFxorOF, &ZForSFxorOF, &ZF));
+
+    return jcc(&ZForSFxorOF);
+}
+
+
+bool QuesoX86 :: jmp () {
+    return jcc(Constant(1, 1));
+}
+
+
+bool QuesoX86 :: jns () {
+    Variable SF(1, "SF");
+    Variable notSF(1, "notSF");
+    Constant one(1, 1);
+
+    ix86->pdi(new InstructionXor(&notSF, &SF, &one));
+
+    return jcc(&notSF);
+}
+
+
+bool QuesoX86 :: jnz () {
+    Variable ZF(1, "ZF");
+    Variable notZF(1, "notZF");
+    Constant one(1, 1);
+
+    ix86->pdi(new InstructionXor(&notZF, &ZF, &one));
+
+    return jcc(&notZF);
+}
+
+
+bool QuesoX86 :: js () {
+    return jcc(Variable(1, "SF"));
+}
+
+
+bool QuesoX86 :: jz () {
+    return jcc(Variable(1, "ZF"));
+}
+
+
+bool QuesoX86 :: lea () {
+    Operand * src = sib(ud_obj.operand[0]);
+
+    operandSet(0, src);
+
+    delete src;
+
+    return true;
+}
+
+
+bool QuesoX86 :: leave () {
+    Variable esp(32, "esp");
+    Variable ebp(32, "ebp");
+    Constant four(32, 4);
+    Array memory(8, "memory", 32);
+
+    ix86->pdi(new InstructionAssign(&esp, &ebp));
+    ix86->pdi(new InstructionLoadLE32(&ebp, &memory, &esp));
+    ix86->pdi(new InstructionAdd(&esp, &esp, &four));
+
+    return true;
+}
+
+
+bool QuesoX86 :: mov () {
+    Operand * src = operandGet(1);
+
+    operandSet(0, src);
+
+    delete src;
+
+    return true;
+}
+
+
+bool QuesoX86 :: movd () {
+    return mov();
+}
+
+
+bool QuesoX86 :: movsd () {
+    Operand * src = operandGet(1);
+    Variable tmp(32, "tmp");
+
+    ix86->pdi(new InstructionAssign(&tmp, src));
+
+    operandSet(0, &tmp);
+
+    delete src;
+
+    return true;
+}
+
+
+bool QuesoX86 :: nop () {
+    return true;
+}
+
+
+bool QuesoX86 :: Not () {
+    Operand * src = operandGet(1);
+    Variable tmp(src->g_bits(), "tmp");
+    Constant ff(src->g_bits(), -1);
+
+    ix86->pdi(new InstructionXor(&tmp, src, &ff));
+
+    operandSet(0, &tmp);
+
+    delete src;
+
+    return true;
+}
+
+
+bool QuesoX86 :: Or () {
+    Operand * lhs = operandGet(0);
+    Operand * rhs = operandGet(1);
+    Variable tmp(lhs->g_bits(), "tmp");
+
+    ix86->pdi(new InstructionSignExtend(&tmp, rhs));
+    ix86->pdi(new InstructionOr(&tmp, lhs, &tmp));
+
+    operandSet(0, &tmp);
+
+    delete lhs;
+    delete rhs;
+
+    return true;
+}
+
+
+bool QuesoX86 :: pop () {
+    Variable tmp(32, "tmp");
+    Variable esp(32, "esp");
+    Constant four(32, 4);
+    Array memory(8, "memory", 32);
+
+    ix86->pdi(new InstructionLoadLE32(&tmp, &memory, &esp));
+    ix86->pdi(new InstructionAdd(&esp, &esp, &four));
+
+    operandSet(0, &tmp);
+
+    return true;
+}
+
+
+bool QuesoX86 :: push () {
+    Operand * operand = operandGet(0);
+
+    Variable esp(32, "esp");
+    Constant four(32, 4);
+    Variable sext(32, "sext");
+    Array memory(8, "memory", 32);
+
+    ix86->pdi(new InstructionSignExtend(&sext, operand));
+    ix86->pdi(new InstructionSub(&esp, &esp, &four));
+    ix86->pdi(new InstructionStoreLE32(&memory, &esp, &sext));
+
+    delete operand;
 
     return true;
 }
