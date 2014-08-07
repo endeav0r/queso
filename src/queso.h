@@ -110,12 +110,12 @@ class Instruction {
         std::list <Instruction *> g_depth_instructions ();
         void push_depth_instruction (Instruction * instruction);
         
-        virtual Operand * operand_written () { return NULL; }
-        virtual std::list <Operand *> operands_read () { return std::list <Operand *>(); }
-        virtual std::list <Operand *> operands () { return std::list <Operand *>(); }
+        virtual const Operand * operand_written () { return NULL; }
+        virtual const std::list <Operand *> operands_read () { return std::list <Operand *>(); }
+        virtual const std::list <Operand *> operands () { return std::list <Operand *>(); }
         
-        virtual std::string smtlib2 () { return ""; }
-        virtual std::string queso   () = 0;
+        virtual const std::string smtlib2 () { return ""; }
+        virtual const std::string queso   () = 0;
 };
 
 class InstructionAssign : public Instruction {
@@ -128,12 +128,15 @@ class InstructionAssign : public Instruction {
             : Instruction (QUESO), dst (dst.copy()), src (src.copy()) {}
         ~InstructionAssign ();
 
-        Operand * operand_written () { return dst; }
-        std::list <Operand *> operands_read ();
-        std::list <Operand *> operands ();
+        const Variable * g_dst () { return dst; }
+        const Operand  * g_src () { return src; }
 
-        std::string smtlib2 ();
-        std::string queso   ();
+        const Operand * operand_written () { return dst; }
+        const std::list <Operand *> operands_read ();
+        const std::list <Operand *> operands ();
+
+        const std::string smtlib2 ();
+        const std::string queso   ();
 };
 
 class InstructionStore : public Instruction {
@@ -153,12 +156,12 @@ class InstructionStore : public Instruction {
                           const Operand * value);
         ~InstructionStore ();
 
-        Operand * operand_written () { return dstmem; }
-        std::list <Operand *> operands_read ();
-        std::list <Operand *> operands ();
+        const Operand * operand_written () { return dstmem; }
+        const std::list <Operand *> operands_read ();
+        const std::list <Operand *> operands ();
 
-        std::string queso ();
-        std::string smtlib2 ();
+        const std::string queso ();
+        const std::string smtlib2 ();
 };
 
 class InstructionLoad : public Instruction {
@@ -170,12 +173,12 @@ class InstructionLoad : public Instruction {
         InstructionLoad (const Variable * dst, const Array * mem, const Operand * address);
         ~InstructionLoad ();
 
-        Operand * operand_written () { return dst; }
-        std::list <Operand *> operands_read ();
-        std::list <Operand *> operands ();
+        const Operand * operand_written () { return dst; }
+        const std::list <Operand *> operands_read ();
+        const std::list <Operand *> operands ();
 
-        std::string queso ();
-        std::string smtlib2 ();
+        const std::string queso ();
+        const std::string smtlib2 ();
 };
 
 class InstructionIte : public Instruction {
@@ -191,12 +194,12 @@ class InstructionIte : public Instruction {
                         const Operand * e);
         ~InstructionIte ();
 
-        Operand * operand_written () { return dst; }
-        std::list <Operand *> operands_read ();
-        std::list <Operand *> operands ();
+        const Operand * operand_written () { return dst; }
+        const std::list <Operand *> operands_read ();
+        const std::list <Operand *> operands ();
 
-        std::string queso ();
-        std::string smtlib2 ();
+        const std::string queso ();
+        const std::string smtlib2 ();
 };
 
 class InstructionSignExtend : public Instruction {
@@ -208,12 +211,12 @@ class InstructionSignExtend : public Instruction {
         InstructionSignExtend (const Variable & dst, const Operand & src);
         ~InstructionSignExtend ();
 
-        Operand * operand_written () { return dst; }
-        std::list <Operand *> operands_read ();
-        std::list <Operand *> operands ();
+        const Operand * operand_written () { return dst; }
+        const std::list <Operand *> operands_read ();
+        const std::list <Operand *> operands ();
 
-        std::string queso ();
-        std::string smtlib2 ();
+        const std::string queso ();
+        const std::string smtlib2 ();
 };
 
 class InstructionArithmetic : public Instruction {
@@ -236,12 +239,12 @@ class InstructionArithmetic : public Instruction {
                                const Operand &  rhs);
         ~InstructionArithmetic();
 
-        Operand * operand_written () { return dst; }
-        std::list <Operand *> operands_read ();
-        std::list <Operand *> operands ();
+        const Operand * operand_written () { return dst; }
+        const std::list <Operand *> operands_read ();
+        const std::list <Operand *> operands ();
 
-        std::string queso ();
-        std::string smtlib2 ();
+        const std::string queso ();
+        const std::string smtlib2 ();
 };
 
 class InstructionAdd : public InstructionArithmetic {
@@ -338,12 +341,12 @@ class InstructionCmp : public Instruction {
                         const Operand & rhs);
         ~InstructionCmp ();
 
-        Operand * operand_written () { return dst; }
-        std::list <Operand *> operands_read ();
-        std::list <Operand *> operands ();
+        const Operand * operand_written () { return dst; }
+        const std::list <Operand *> operands_read ();
+        const std::list <Operand *> operands ();
 
-        std::string queso ();
-        std::string smtlib2 ();
+        const std::string queso ();
+        const std::string smtlib2 ();
 };
 
 class InstructionCmpEq : public InstructionCmp {

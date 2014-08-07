@@ -22,7 +22,7 @@ class InstructionLoadLE16 : public Instruction {
         
         ~InstructionLoadLE16 ();
         
-        std::string queso ();
+        const std::string queso ();
 };
 
 class InstructionLoadLE32 : public Instruction {
@@ -44,7 +44,7 @@ class InstructionLoadLE32 : public Instruction {
         
         ~InstructionLoadLE32 ();
 
-        std::string queso ();
+        const std::string queso ();
 };
 
 class InstructionStoreLE16 : public Instruction {
@@ -64,7 +64,7 @@ class InstructionStoreLE16 : public Instruction {
                               const Operand * value);
         ~InstructionStoreLE16 ();
 
-        std::string queso ();
+        const std::string queso ();
 };
 
 class InstructionStoreLE32 : public Instruction {
@@ -84,7 +84,7 @@ class InstructionStoreLE32 : public Instruction {
                               const Operand * value);
         ~InstructionStoreLE32 ();
 
-        std::string queso ();
+        const std::string queso ();
 };
 
 #endif

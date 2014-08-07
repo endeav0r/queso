@@ -2,6 +2,7 @@
 #define quesoX86_HEADER
 
 #include "queso.h"
+#include "translator.h"
 
 #include <udis86.h>
 
@@ -12,16 +13,15 @@ class InstructionX86 : public Instruction {
         InstructionX86 (const std::string & text)
             : Instruction (), text (text) {}
 
-        std::string queso   () { return text; }
+        const std::string queso   () { return text; }
 
         void pdi (Instruction * ins) { push_depth_instruction(ins); }
 };
 
-class QuesoX86 {
+class QuesoX86 : public Translator {
     private :
         InstructionX86 * ix86;
         ud_t ud_obj;
-        uint64_t address;
 
         Variable  getRegister  (unsigned int reg);
         Constant  operand_lval (unsigned int bits, ud_operand operand);
@@ -69,15 +69,19 @@ class QuesoX86 {
         bool mov ();
         bool movd ();
         bool movsd ();
+        bool movzx ();
         bool nop ();
         bool Not ();
         bool Or ();
         bool pop ();
         bool push ();
+        bool ret ();
+        bool test ();
+        bool Xor ();
 
     public :
         QuesoX86 () {ix86 = NULL;}
-        Instruction * translate (const uint8_t * data, size_t size, uint64_t address);
+        Instruction * translate (const uint8_t * data, size_t size);
 };
 
 #endif

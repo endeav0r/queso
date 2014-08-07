@@ -124,14 +124,14 @@ InstructionAssign :: ~InstructionAssign () {
 }
 
 
-std::list <Operand *> InstructionAssign :: operands_read () {
+const std::list <Operand *> InstructionAssign :: operands_read () {
     std::list <Operand *> operands;
     operands.push_back(src);
     return operands;
 }
 
 
-std::list <Operand *> InstructionAssign :: operands () {
+const std::list <Operand *> InstructionAssign :: operands () {
     std::list <Operand *> operands;
     operands.push_back(dst);
     operands.push_back(src);
@@ -139,7 +139,7 @@ std::list <Operand *> InstructionAssign :: operands () {
 }
 
 
-std::string InstructionAssign :: smtlib2 () {
+const std::string InstructionAssign :: smtlib2 () {
     std::stringstream ss;
 
     ss << "(assert (= " << dst->smtlib2() << " ";
@@ -156,7 +156,7 @@ std::string InstructionAssign :: smtlib2 () {
     return ss.str();
 }
 
-std::string InstructionAssign :: queso () {
+const std::string InstructionAssign :: queso () {
     std::stringstream ss;
     ss << "assign " << dst->queso() << " " << src->queso();
     return ss.str();
@@ -197,7 +197,7 @@ InstructionStore :: ~InstructionStore () {
 }
 
 
-std::list <Operand *> InstructionStore :: operands_read () {
+const std::list <Operand *> InstructionStore :: operands_read () {
     std::list <Operand *> operands;
     operands.push_back(srcmem);
     operands.push_back(address);
@@ -205,7 +205,7 @@ std::list <Operand *> InstructionStore :: operands_read () {
     return operands;
 }
 
-std::list <Operand *> InstructionStore :: operands () {
+const std::list <Operand *> InstructionStore :: operands () {
     std::list <Operand *> operands;
     operands.push_back(dstmem);
     operands.push_back(srcmem);
@@ -214,7 +214,7 @@ std::list <Operand *> InstructionStore :: operands () {
     return operands;
 }
 
-std::string InstructionStore :: smtlib2 () {
+const std::string InstructionStore :: smtlib2 () {
     std::stringstream ss;
 
     ss << "(assert (= " << dstmem->smtlib2() << " (store " << srcmem->smtlib2() << " "
@@ -223,7 +223,7 @@ std::string InstructionStore :: smtlib2 () {
     return ss.str();
 }
 
-std::string InstructionStore :: queso () {
+const std::string InstructionStore :: queso () {
     std::stringstream ss;
     ss << "store " << dstmem->queso() << "[" << address->queso() << "] " << value->queso();
     return ss.str();
@@ -248,14 +248,14 @@ InstructionLoad :: ~InstructionLoad () {
     delete address;
 }
 
-std::list <Operand *> InstructionLoad :: operands_read () {
+const std::list <Operand *> InstructionLoad :: operands_read () {
     std::list <Operand *> operands;
     operands.push_back(mem);
     operands.push_back(address);
     return operands;
 }
 
-std::list <Operand *> InstructionLoad :: operands () {
+const std::list <Operand *> InstructionLoad :: operands () {
     std::list <Operand *> operands;
     operands.push_back(dst);
     operands.push_back(mem);
@@ -263,7 +263,7 @@ std::list <Operand *> InstructionLoad :: operands () {
     return operands;
 }
 
-std::string InstructionLoad :: smtlib2 () {
+const std::string InstructionLoad :: smtlib2 () {
     std::stringstream ss;
 
     ss << "(assert (= " << dst->smtlib2() << " (select " << mem->smtlib2() << " "
@@ -272,7 +272,7 @@ std::string InstructionLoad :: smtlib2 () {
     return ss.str();
 }
 
-std::string InstructionLoad :: queso () {
+const std::string InstructionLoad :: queso () {
     std::stringstream ss;
     ss << "load " << dst->queso() << " " << mem->queso() << "[" << address->queso() << "]";
     return ss.str();
@@ -300,7 +300,7 @@ InstructionIte :: ~InstructionIte () {
     delete e;
 }
 
-std::list <Operand *> InstructionIte :: operands_read () {
+const std::list <Operand *> InstructionIte :: operands_read () {
     std::list <Operand *> operands;
     operands.push_back(condition);
     operands.push_back(t);
@@ -308,7 +308,7 @@ std::list <Operand *> InstructionIte :: operands_read () {
     return operands;
 }
 
-std::list <Operand *> InstructionIte :: operands () {
+const std::list <Operand *> InstructionIte :: operands () {
     std::list <Operand *> operands;
     operands.push_back(dst);
     operands.push_back(condition);
@@ -317,7 +317,7 @@ std::list <Operand *> InstructionIte :: operands () {
     return operands;
 }
 
-std::string InstructionIte :: smtlib2 () {
+const std::string InstructionIte :: smtlib2 () {
     std::stringstream ss;
 
     ss << "(assert (= " << dst->smtlib2() << " (ite (= " << condition->smtlib2() << " #b1) "
@@ -326,7 +326,7 @@ std::string InstructionIte :: smtlib2 () {
     return ss.str();
 }
 
-std::string InstructionIte :: queso () {
+const std::string InstructionIte :: queso () {
     std::stringstream ss;
     ss << "ite " << dst->queso() << " (" << condition->queso()
        << " ? " << t->queso() << " : " << e->queso() << ")";
@@ -356,20 +356,20 @@ InstructionSignExtend :: ~InstructionSignExtend () {
     delete src;
 }
 
-std::list <Operand *> InstructionSignExtend :: operands_read () {
+const std::list <Operand *> InstructionSignExtend :: operands_read () {
     std::list <Operand *> operands;
     operands.push_back(src);
     return operands;
 }
 
-std::list <Operand *> InstructionSignExtend :: operands () {
+const std::list <Operand *> InstructionSignExtend :: operands () {
     std::list <Operand *> operands;
     operands.push_back(dst);
     operands.push_back(src);
     return operands;
 }
 
-std::string InstructionSignExtend :: smtlib2 () {
+const std::string InstructionSignExtend :: smtlib2 () {
     std::stringstream ss;
 
     ss << "(assert (= " << dst->smtlib2() << " ((_ sign_extend "
@@ -378,7 +378,7 @@ std::string InstructionSignExtend :: smtlib2 () {
     return ss.str();
 }
 
-std::string InstructionSignExtend :: queso () {
+const std::string InstructionSignExtend :: queso () {
     std::stringstream ss;
     ss << "signextend " << dst->queso() << " " << src->queso();
     return ss.str();
@@ -420,14 +420,14 @@ InstructionArithmetic :: ~InstructionArithmetic () {
     delete rhs;
 }
 
-std::list <Operand *> InstructionArithmetic :: operands_read () {
+const std::list <Operand *> InstructionArithmetic :: operands_read () {
     std::list <Operand *> operands;
     operands.push_back(lhs);
     operands.push_back(rhs);
     return operands;
 }
 
-std::list <Operand *> InstructionArithmetic :: operands () {
+const std::list <Operand *> InstructionArithmetic :: operands () {
     std::list <Operand *> operands;
     operands.push_back(dst);
     operands.push_back(lhs);
@@ -435,7 +435,7 @@ std::list <Operand *> InstructionArithmetic :: operands () {
     return operands;
 }
 
-std::string InstructionArithmetic :: smtlib2 () {
+const std::string InstructionArithmetic :: smtlib2 () {
     std::stringstream ss;
 
     ss << "(assert (= " << dst->smtlib2() << " (" << bvop << " " << lhs->smtlib2() << " "
@@ -444,7 +444,7 @@ std::string InstructionArithmetic :: smtlib2 () {
     return ss.str();
 }
 
-std::string InstructionArithmetic :: queso () {
+const std::string InstructionArithmetic :: queso () {
     std::stringstream ss;
     ss << opstr << " " << dst->queso() << " " << lhs->queso() << " " << rhs->queso();
     return ss.str();
@@ -486,14 +486,14 @@ InstructionCmp :: ~InstructionCmp () {
     delete rhs;
 }
 
-std::list <Operand *> InstructionCmp :: operands_read () {
+const std::list <Operand *> InstructionCmp :: operands_read () {
     std::list <Operand *> operands;
     operands.push_back(lhs);
     operands.push_back(rhs);
     return operands;
 }
 
-std::list <Operand *> InstructionCmp :: operands () {
+const std::list <Operand *> InstructionCmp :: operands () {
     std::list <Operand *> operands;
     operands.push_back(dst);
     operands.push_back(lhs);
@@ -501,7 +501,7 @@ std::list <Operand *> InstructionCmp :: operands () {
     return operands;
 }
 
-std::string InstructionCmp :: smtlib2 () {
+const std::string InstructionCmp :: smtlib2 () {
     std::stringstream ss;
 
     ss << "(assert (= " << dst->smtlib2() << " (ite ("
@@ -510,7 +510,7 @@ std::string InstructionCmp :: smtlib2 () {
     return ss.str();
 }
 
-std::string InstructionCmp :: queso () {
+const std::string InstructionCmp :: queso () {
     std::stringstream ss;
     ss << opstr << " " << dst->queso() << " " << lhs->queso() << " " << rhs->queso();
     return ss.str();

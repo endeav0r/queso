@@ -31,7 +31,7 @@ int main () {
 
 
     for (int i = 0; TESTS[i].text != NULL; i++) {
-        Instruction * ins = quesoX86.translate(TESTS[i].data, TESTS[i].data_size, 0);
+        Instruction * ins = quesoX86.translate(TESTS[i].data, TESTS[i].data_size);
         std::cout << ins->queso() << std::endl;
         print_instructions(2, ins->g_depth_instructions());
         std::cout << "--------------------------------------------------" << std::endl;

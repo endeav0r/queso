@@ -46,7 +46,7 @@ InstructionLoadLE16 :: ~InstructionLoadLE16 () {
 }
 
 
-std::string InstructionLoadLE16 :: queso () {
+const std::string InstructionLoadLE16 :: queso () {
     std::stringstream ss;
     ss << "LoadLE16 " << dst->queso() << " = " 
        << memory->queso() << "[" << address->queso() << "]";
@@ -107,7 +107,7 @@ void InstructionLoadLE32 :: init () {
 }
 
 
-std::string InstructionLoadLE32 :: queso () {
+const std::string InstructionLoadLE32 :: queso () {
     std::stringstream ss;
     ss << "LoadLE32 " << dst->queso() << " = " 
        << memory->queso() << "[" << address->queso() << "]";
@@ -160,7 +160,7 @@ void InstructionStoreLE16 :: init () {
 }
 
 
-std::string InstructionStoreLE16 :: queso () {
+const std::string InstructionStoreLE16 :: queso () {
     std::stringstream ss;
     ss << "StoreLE16 " << memory->queso() << "[" << address->queso() << "]"
        << " = " << value->queso();
@@ -223,7 +223,7 @@ void InstructionStoreLE32 :: init () {
 }
 
 
-std::string InstructionStoreLE32 :: queso () {
+const std::string InstructionStoreLE32 :: queso () {
     std::stringstream ss;
     ss << "StoreLE32 " << memory->queso() << "[" << address->queso() << "]"
        << " = " << value->queso();

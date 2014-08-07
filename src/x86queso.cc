@@ -7,10 +7,9 @@
 #include <sstream>
 #include <cstdio>
 
-Instruction * QuesoX86 :: translate (const uint8_t * data, size_t size, uint64_t address) {
+Instruction * QuesoX86 :: translate (const uint8_t * data, size_t size) {
     if (ix86 != NULL)
         delete ix86;
-    this->address = address;
 
     ud_init(&ud_obj);
     ud_set_mode(&ud_obj, 32);
@@ -53,9 +52,15 @@ Instruction * QuesoX86 :: translate (const uint8_t * data, size_t size, uint64_t
     case UD_Imov    : mov(); break;
     case UD_Imovd   : movd(); break;
     case UD_Imovsd  : movsd(); break;
+    case UD_Imovzx  : movzx(); break;
     case UD_Inop    : nop(); break;
     case UD_Inot    : Not(); break;
     case UD_Ior     : Or(); break;
+    case UD_Ipop    : pop(); break;
+    case UD_Ipush   : push(); break;
+    case UD_Iret    : ret(); break;
+    case UD_Itest   : test(); break;
+    case UD_Ixor    : Xor(); break;
     default :
         break;
     }
@@ -90,8 +95,12 @@ Variable fullReg (unsigned int reg) {
         return Variable(32, "esp");
     case UD_R_EBP :
         return Variable(32, "ebp");
+    case UD_R_ESI :
+        return Variable(32, "esi");
+    case UD_R_EDI :
+        return Variable(32, "edi");
     }
-    throw std::runtime_error("invalid register " + reg);
+    throw std::runtime_error("invalid register");
 }
 
 
@@ -144,11 +153,16 @@ Variable QuesoX86 :: getRegister (unsigned int reg) {
     case UD_R_EBX :
     case UD_R_ECX :
     case UD_R_EDX :
+    case UD_R_ESI :
+    case UD_R_EDI :
     case UD_R_ESP :
     case UD_R_EBP :
         return fullReg(reg);
     }
-    throw std::runtime_error("unknown register");
+
+    std::stringstream ss;
+    ss << "unknown register... " << reg;
+    throw std::runtime_error(ss.str());
 }
 
 
@@ -660,7 +674,7 @@ bool QuesoX86 :: jz () {
 
 
 bool QuesoX86 :: lea () {
-    Operand * src = sib(ud_obj.operand[0]);
+    Operand * src = sib(ud_obj.operand[1]);
 
     operandSet(0, src);
 
@@ -708,6 +722,15 @@ bool QuesoX86 :: movsd () {
 
     operandSet(0, &tmp);
 
+    delete src;
+
+    return true;
+}
+
+
+bool QuesoX86 :: movzx () {
+    Operand * src = operandGet(1);
+    operandSet(0, src);
     delete src;
 
     return true;
@@ -779,6 +802,70 @@ bool QuesoX86 :: push () {
     ix86->pdi(new InstructionStoreLE32(&memory, &esp, &sext));
 
     delete operand;
+
+    return true;
+}
+
+
+bool QuesoX86 :: ret () {
+    Variable esp(32, "esp");
+    Variable eip(32, "eip");
+    Constant four(32, 4);
+    Array memory(8, "memory", 32);
+
+    ix86->pdi(new InstructionLoadLE32(&eip, &memory, &esp));
+    ix86->pdi(new InstructionAdd(&esp, &esp, &four));
+
+    return true;
+}
+
+
+bool QuesoX86 :: test () {
+    Operand * lhs = operandGet(0);
+    Operand * rhs = operandGet(1);
+    Variable tmp(lhs->g_bits(), "tmp");
+
+    Variable OF(1, "OF");
+    Variable CF(1, "CF");
+    Variable ZF(1, "ZF");
+    Variable SF(1, "SF");
+    Constant zero1(1, 0);
+    Constant zero(lhs->g_bits(), 0);
+
+    ix86->pdi(new InstructionAnd(&tmp, lhs, rhs));
+    ix86->pdi(new InstructionCmpEq(&ZF, &tmp, &zero));
+    ix86->pdi(new InstructionCmpLts(&SF, &tmp, &zero));
+    ix86->pdi(new InstructionAssign(&OF, &zero1));
+    ix86->pdi(new InstructionAssign(&SF, &zero1));
+
+    delete lhs;
+    delete rhs;
+
+    return 1;
+}
+
+
+bool QuesoX86 :: Xor () {
+    Operand * lhs = operandGet(0);
+    Operand * rhs = operandGet(1);
+    Variable tmp(32, "tmp");
+
+    Variable OF(1, "OF");
+    Variable CF(1, "CF");
+    Variable SF(1, "SF");
+    Variable ZF(1, "ZF");
+    Constant zero1(1, 0);
+    Constant zero(lhs->g_bits(), 0);
+
+    ix86->pdi(new InstructionAssign(&OF, &zero));
+    ix86->pdi(new InstructionAssign(&CF, &zero));
+    ix86->pdi(new InstructionCmpEq(&ZF, &tmp, &zero));
+    ix86->pdi(new InstructionCmpLts(&SF, &tmp, &zero));
+
+    operandSet(0, &tmp);
+
+    delete lhs;
+    delete rhs;
 
     return true;
 }
