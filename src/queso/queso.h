@@ -41,14 +41,14 @@ class Operand {
             : bits (bits), ssa (0) {}
         virtual ~Operand () {}
 
-        unsigned int g_bits () { return bits; }
-        unsigned int g_ssa  () { return ssa; }
+        unsigned int g_bits () const { return bits; }
+        unsigned int g_ssa  () const { return ssa; }
         void s_ssa (unsigned int ssa) { this->ssa = ssa; }
 
         virtual std::string smtlib2             () = 0;
         virtual std::string smtlib2_declaration () = 0;
         virtual std::string queso               () = 0;
-        virtual OperandType g_type              () = 0;
+        virtual OperandType g_type              () const = 0;
         virtual Operand *   copy                () const = 0;
 };
 
@@ -59,9 +59,9 @@ class Variable : public Operand {
         Variable (unsigned int bits, const std::string & name)
             : Operand (bits), name (name) {}
 
-        OperandType g_type () { return VARIABLE; }
+        OperandType g_type () const { return VARIABLE; }
 
-        const std::string & g_name () { return name; }
+        const std::string & g_name () const { return name; }
         Variable * copy () const;
 
         std::string smtlib2 ();
@@ -77,10 +77,10 @@ class Array : public Operand {
         Array (unsigned int bits, const std::string & name, unsigned int address_bits)
             : Operand (bits), name (name), address_bits (address_bits) {}
 
-        OperandType g_type () { return ARRAY; }
+        OperandType g_type () const { return ARRAY; }
 
-        const std::string & g_name () { return name; }
-        unsigned int g_address_bits () { return address_bits; }
+        const std::string & g_name  () const { return name; }
+        unsigned int g_address_bits () const { return address_bits; }
         Array * copy () const;
 
         std::string smtlib2 ();
@@ -95,9 +95,9 @@ class Constant : public Operand {
         Constant (unsigned int bits, uint64_t value)
             : Operand (bits), value (value) {}
 
-        OperandType g_type () { return CONSTANT; }
+        OperandType g_type  () const { return CONSTANT; }
+        uint64_t    g_value () const { return value; }
 
-        uint64_t g_value () { return value; }
         Constant * copy () const;
 
         std::string smtlib2 ();
@@ -129,9 +129,9 @@ class Instruction {
                 delete *it;
         };
 
-        bool        g_pc_set () { return pc_set; }
-        uint64_t    g_pc     () { return pc; }
-        QuesoOpcode g_opcode () { return opcode; }
+        bool        g_pc_set () const { return pc_set; }
+        uint64_t    g_pc     () const { return pc; }
+        QuesoOpcode g_opcode () const { return opcode; }
 
         const std::list <Instruction *> & g_depth_instructions () const;
         void push_depth_instruction (Instruction * instruction);
@@ -157,8 +157,8 @@ class InstructionAssign : public Instruction {
             : Instruction (ASSIGN), dst (dst.copy()), src (src.copy()) {}
         ~InstructionAssign ();
 
-        const Variable * g_dst () { return dst; }
-        const Operand  * g_src () { return src; }
+        const Variable * g_dst () const { return dst; }
+        const Operand  * g_src () const { return src; }
 
         const Operand * operand_written () { return dst; }
         const std::list <Operand *> operands_read ();
@@ -187,6 +187,11 @@ class InstructionStore : public Instruction {
                           const Operand * value);
         ~InstructionStore ();
 
+        const Array *   g_dstmem  () const { return dstmem; }
+        const Array *   g_srcmem  () const { return srcmem; }
+        const Operand * g_address () const { return address; }
+        const Operand * g_value   () const { return value; }
+
         const Operand * operand_written () { return dstmem; }
         const std::list <Operand *> operands_read ();
         const std::list <Operand *> operands ();
@@ -205,6 +210,10 @@ class InstructionLoad : public Instruction {
     public :
         InstructionLoad (const Variable * dst, const Array * mem, const Operand * address);
         ~InstructionLoad ();
+
+        const Variable * g_dst     () const { return dst; }
+        const Array *    g_mem     () const { return mem; }
+        const Operand *  g_address () const { return address; }
 
         const Operand * operand_written () { return dst; }
         const std::list <Operand *> operands_read ();
@@ -229,6 +238,11 @@ class InstructionIte : public Instruction {
                         const Operand * e);
         ~InstructionIte ();
 
+        const Variable * g_dst ()       const { return dst; }
+        const Operand  * g_condition () const { return condition; }
+        const Operand  * g_t ()         const { return t; }
+        const Operand  * g_e ()         const { return e; }
+
         const Operand * operand_written () { return dst; }
         const std::list <Operand *> operands_read ();
         const std::list <Operand *> operands ();
@@ -247,6 +261,9 @@ class InstructionSignExtend : public Instruction {
         InstructionSignExtend (const Variable * dst, const Operand * src);
         InstructionSignExtend (const Variable & dst, const Operand & src);
         ~InstructionSignExtend ();
+
+        const Variable * g_dst () const { return dst; }
+        const Operand  * g_src () const { return src; }
 
         const Operand * operand_written () { return dst; }
         const std::list <Operand *> operands_read ();
@@ -277,6 +294,10 @@ class InstructionArithmetic : public Instruction {
                                const Operand &  lhs,
                                const Operand &  rhs);
         ~InstructionArithmetic();
+
+        const Variable * g_dst () const { return dst; }
+        const Operand  * g_lhs () const { return lhs; }
+        const Operand  * g_rhs () const { return rhs; }
 
         const Operand * operand_written () { return dst; }
         const std::list <Operand *> operands_read ();
@@ -405,6 +426,10 @@ class InstructionCmp : public Instruction {
                         const Operand * lhs,
                         const Operand * rhs);
         ~InstructionCmp ();
+
+        const Variable * g_dst () const { return dst; }
+        const Operand *  g_lhs () const { return lhs; }
+        const Operand *  g_rhs () const { return rhs; }
 
         const Operand * operand_written () { return dst; }
         const std::list <Operand *> operands_read ();

@@ -1,22 +1,29 @@
 #ifndef machine_HEADER
 #define machine_HEADER
 
+#include <cstring>
+#include <inttypes.h>
+#include <map>
 #include <string>
 
 #include "queso/queso.h"
 
-class Buffer {
+class MachineBuffer {
     private :
         uint8_t * bytes;
         size_t size;
     public :
-        Buffer (uint8_t * bytes, size_t size) {
-            this->bytes = new bytes[size];
-            memcpy(this->bytes, bytes, size);
+        MachineBuffer (uint8_t * bytes, size_t size, bool takeBuffer = false) {
+            if (takeBuffer)
+                this->bytes = bytes;
+            else {
+                this->bytes = new uint8_t[size];
+                memcpy(this->bytes, bytes, size);
+            }
             this->size = size;
         }
 
-        ~Buffer () {
+        ~MachineBuffer () {
             delete[] bytes;
         }
 
@@ -25,18 +32,23 @@ class Buffer {
 };
 
 
-class Variable {
+class MachineVariable {
     private :
         std::string name;
         uint64_t    value;
         uint8_t     bits;
     public :
-        Variable (std::string name, uint64_t value, uint8_t bits)
+        MachineVariable () {}
+        MachineVariable (std::string name, uint64_t value, uint8_t bits)
             : name (name), value (value), bits (bits) {}
 
         const std::string & g_name () { return name; }
         uint64_t g_value () { return value; }
         uint8_t  g_bits  () { return bits; }
+
+        MachineVariable * copy () {
+            return new MachineVariable(name, value, bits);
+        }
 };
 
 
@@ -44,15 +56,22 @@ class Variable {
 class Machine {
     private :
         std::map <uint64_t, uint8_t> memory;
-        std::map <std::string, Variable> variables;
+        std::map <std::string, MachineVariable> variables;
+
+        int64_t  signExtend   (uint64_t variable, size_t inBits, size_t outBits);
+        uint64_t operandValue (const Operand * operand);
     public :
-        Machine ();
 
-        void    s_memory (uint64_t address, uint8_t * bytes, size_t size);
-        uint8_t g_memory (uint64_t address);
-        Buffer  g_memory (uint64_t address, size_t size);
+        void          s_variable (const MachineVariable & machineVariable);
+        void          s_memory   (uint64_t address, uint8_t * bytes, size_t size);
+        uint8_t       g_memory   (uint64_t address);
+        MachineBuffer g_memory   (uint64_t address, size_t size);
 
-        void concreteExecution (Instruction * instruction);
+        const MachineVariable & g_variable (std::string name) {
+            return variables[name];
+        }
+
+        void concreteExecution (const Instruction * instruction);
 };
 
 #endif
