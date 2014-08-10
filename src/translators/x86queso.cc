@@ -7,6 +7,8 @@
 #include <sstream>
 #include <cstdio>
 
+#define DEBUG_x86TRANSLATE
+
 Instruction * QuesoX86 :: translate (const uint8_t * data, size_t size) {
     if (ix86 != NULL)
         delete ix86;
@@ -20,7 +22,15 @@ Instruction * QuesoX86 :: translate (const uint8_t * data, size_t size) {
     if (ud_disassemble(&ud_obj) == 0)
         return NULL;
 
+    #ifdef DEBUG_x86TRANSLATE
+    printf("DEBUG_X86TRANSLATE %s\n", ud_insn_asm(&ud_obj));fflush(stdout);
+    #endif
+
     ix86 = new InstructionX86(ud_insn_asm(&ud_obj));
+
+    ix86->pdi(new InstructionAdd(Variable(32, "eip"),
+                                 Variable(32, "eip"),
+                                 Constant(32, ud_insn_len(&ud_obj))));
 
     switch (ud_obj.mnemonic) {
     case UD_Iadd    : add(); break;
@@ -376,8 +386,8 @@ bool QuesoX86 :: And () {
     // 8-bit immediates are always sign-extended
     if ((ud_obj.operand[1].type == UD_OP_IMM) && (rhs->g_bits() == 8)) {
         Operand * rhs_old = rhs;
-        Variable * rhs = new Variable(lhs->g_bits(), "tmpRhs");
-        ix86->pdi(new InstructionSignExtend(rhs, rhs_old));
+        rhs = new Variable(lhs->g_bits(), "tmpRhs");
+        ix86->pdi(new InstructionSignExtend((Variable *) rhs, rhs_old));
         delete rhs_old;
     }
 

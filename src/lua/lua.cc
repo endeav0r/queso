@@ -29,6 +29,7 @@ static const struct luaL_Reg lqueso_machine_m [] = {
 };
 
 static const struct luaL_Reg lqueso_lib_f [] = {
+    {"machine", lqueso_machine_new},
     {"x86translate", lqueso_x86translate},
     {NULL, NULL}
 };

@@ -1,6 +1,9 @@
 #include "machine.h"
 
+#include <iostream>
+
 #define INVALID_OPERAND_TYPE -100
+#define DEBUG_ENGINE
 
 void Machine :: s_variable (const MachineVariable & machineVariable) {
     this->variables[machineVariable.g_name()] = machineVariable;
@@ -29,16 +32,28 @@ MachineBuffer Machine :: g_memory (uint64_t address, size_t size) {
 }
 
 
-int64_t Machine :: signExtend (uint64_t variable, size_t inBits, size_t outBits) {
-    uint64_t outMask;
-    outMask = 1 << (outBits + 1);
-    outMask -= 1;
+int64_t Machine :: signExtend (uint64_t variable, unsigned int inBits, unsigned int outBits) {
+    uint64_t outMask = (((uint64_t ) 1) << outBits) - 1;
 
-    uint64_t signMask = -1;
-    signMask <<= inBits;
+    uint64_t signMask = ((uint64_t) -1) << inBits;
 
-    if (variable & (1 << (inBits - 1)))
-        return (variable & signMask) & outMask;
+    std::cout << "inBits=" << inBits << std::endl;
+    std::cout << "inBits - 1=" << inBits - 1 << std::endl;
+    std::cout << "(1 << (inBits - 1))=" << (1 << (inBits - 1)) << std::endl;
+
+    uint64_t matchMask = (uint64_t) ((uint64_t) 1) << (inBits - (uint64_t) 1);
+
+    #ifdef DEBUG_ENGINE
+    std::cout << "DEBUG_ENGINE signExtend variable=" << std::hex << variable 
+              << " inBits=" << std::hex << inBits
+              << " outBits=" << std::hex << outBits 
+              << " outMask=" << std::hex << outMask 
+              << " signMask=" << std::hex << signMask 
+              << " matchMask=" << std::hex << matchMask << std::endl;
+    #endif
+
+    if (variable & matchMask)
+        return (variable | signMask) & outMask;
     else
         return variable & outMask;
 }
@@ -56,6 +71,7 @@ uint64_t Machine :: operandValue (const Operand * operand) {
 
 
 void Machine :: concreteExecution (const Instruction * instruction) {
+
     // ASSIGN
     if (const InstructionAssign * ins = dynamic_cast<const InstructionAssign *>(instruction)) {
         MachineVariable dst(ins->g_dst()->g_name(),
@@ -97,14 +113,21 @@ void Machine :: concreteExecution (const Instruction * instruction) {
     else if (const InstructionSignExtend * ins = dynamic_cast<const InstructionSignExtend *>(instruction)) {
         MachineVariable dst(ins->g_dst()->g_name(),
                             signExtend(operandValue(ins->g_src()),
-                                                    ins->g_dst()->g_bits(),
-                                                    ins->g_src()->g_bits()),
+                                                    ins->g_src()->g_bits(),
+                                                    ins->g_dst()->g_bits()),
                             ins->g_dst()->g_bits());
         variables[dst.g_name()] = dst;
     }
 
     // ADD
     else if (const InstructionAdd * ins = dynamic_cast<const InstructionAdd *>(instruction)) {
+        #ifdef DEBUG_ENGINE
+        std::cout << ins->g_dst()->g_name() << " = "
+                  << operandValue(ins->g_lhs()) << " + " << operandValue(ins->g_rhs())
+                  << " => " << (operandValue(ins->g_lhs()) + operandValue(ins->g_rhs()))
+                  << std::endl;
+        #endif
+
         MachineVariable dst(ins->g_dst()->g_name(),
                             operandValue(ins->g_lhs()) + operandValue(ins->g_rhs()),
                             ins->g_dst()->g_bits());

@@ -293,7 +293,7 @@ class InstructionArithmetic : public Instruction {
                                const Variable & dst,
                                const Operand &  lhs,
                                const Operand &  rhs);
-        ~InstructionArithmetic();
+        virtual ~InstructionArithmetic();
 
         const Variable * g_dst () const { return dst; }
         const Operand  * g_lhs () const { return lhs; }

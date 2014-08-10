@@ -42,9 +42,9 @@ class MachineVariable {
         MachineVariable (std::string name, uint64_t value, uint8_t bits)
             : name (name), value (value), bits (bits) {}
 
-        const std::string & g_name () { return name; }
-        uint64_t g_value () { return value; }
-        uint8_t  g_bits  () { return bits; }
+        const std::string & g_name () const { return name; }
+        uint64_t g_value () const { return value; }
+        uint8_t  g_bits  () const { return bits; }
 
         MachineVariable * copy () {
             return new MachineVariable(name, value, bits);
@@ -58,7 +58,7 @@ class Machine {
         std::map <uint64_t, uint8_t> memory;
         std::map <std::string, MachineVariable> variables;
 
-        int64_t  signExtend   (uint64_t variable, size_t inBits, size_t outBits);
+        int64_t  signExtend   (uint64_t variable, unsigned int inBits, unsigned int outBits);
         uint64_t operandValue (const Operand * operand);
     public :
 
