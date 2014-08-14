@@ -36,19 +36,19 @@ Variable * Variable :: copy () const {
     return nv;
 }
 
-std::string Variable :: smtlib2 () {
+std::string Variable :: smtlib2 () const {
     std::stringstream ss;
     ss << name << "_" << ssa;
     return ss.str();
 }
 
-std::string Variable :: smtlib2_declaration () {
+std::string Variable :: smtlib2_declaration () const {
     std::stringstream ss;
     ss << "(declare-fun " << smtlib2() << " () (_ BitVec " << bits << "))";
     return ss.str();
 }
 
-std::string Variable :: queso () {
+std::string Variable :: queso () const {
     std::stringstream ss;
     ss << bits << ":" << name << "_" << ssa;
     return ss.str();
@@ -64,20 +64,20 @@ Array * Array :: copy () const {
     return na;
 }
 
-std::string Array :: smtlib2 () {
+std::string Array :: smtlib2 () const {
     std::stringstream ss;
     ss << name << "_" << ssa;
     return ss.str();
 }
 
-std::string Array :: smtlib2_declaration () {
+std::string Array :: smtlib2_declaration () const {
     std::stringstream ss;
     ss << "(declare-fun " << smtlib2() << " () (Array (_ BitVec "
        << address_bits << ") (_ BitVec " << bits << ")))";
     return ss.str();
 }
 
-std::string Array :: queso () {
+std::string Array :: queso () const {
     std::stringstream ss;
     ss << "{" << address_bits << "->" << bits << "}" << name << "_" << ssa;
     return ss.str();
@@ -93,7 +93,7 @@ Constant * Constant :: copy () const {
     return nc;
 }
 
-std::string Constant :: smtlib2 () {
+std::string Constant :: smtlib2 () const {
     char tmp[64];
 
     switch (bits) {
@@ -108,11 +108,11 @@ std::string Constant :: smtlib2 () {
     return tmp;
 }
 
-std::string Constant :: smtlib2_declaration () {
+std::string Constant :: smtlib2_declaration () const {
     return "";
 }
 
-std::string Constant :: queso () {
+std::string Constant :: queso () const {
     std::stringstream ss;
     ss << bits << ":" << std::hex << value;
     return ss.str();

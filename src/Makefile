@@ -1,6 +1,6 @@
 OBJS = queso/*.o translators/*.o lua/*.o machine/*.o
 
-CXXFLAGS = -g -Werror -Wall -std=c++11
+CXXFLAGS = -g -Werror -Wall -std=c++11 -O2
 LIBS = -ludis86 -llua5.1
 
 all :

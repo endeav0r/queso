@@ -39,8 +39,11 @@ class MachineVariable {
         uint8_t     bits;
     public :
         MachineVariable () {}
-        MachineVariable (std::string name, uint64_t value, uint8_t bits)
-            : name (name), value (value), bits (bits) {}
+        MachineVariable (std::string name, uint64_t value, uint8_t bits) {
+            this->name = name;
+            this->value = value & ((((uint64_t) 1) << bits) - 1);
+            this->bits = bits;
+        }
 
         const std::string & g_name () const { return name; }
         uint64_t g_value () const { return value; }

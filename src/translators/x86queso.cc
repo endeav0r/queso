@@ -35,6 +35,7 @@ Instruction * QuesoX86 :: translate (const uint8_t * data, size_t size) {
     switch (ud_obj.mnemonic) {
     case UD_Iadd    : add(); break;
     case UD_Iand    : And(); break;
+    case UD_Icall   : call(); break;
     case UD_Icmova  : cmova(); break;
     case UD_Icmovb  : cmovb(); break;
     case UD_Icmovbe : cmovbe(); break;
@@ -69,6 +70,7 @@ Instruction * QuesoX86 :: translate (const uint8_t * data, size_t size) {
     case UD_Ipop    : pop(); break;
     case UD_Ipush   : push(); break;
     case UD_Iret    : ret(); break;
+    case UD_Isub    : sub(); break;
     case UD_Itest   : test(); break;
     case UD_Ixor    : Xor(); break;
     default :
@@ -325,18 +327,20 @@ bool QuesoX86 :: cmovcc (const Operand * condition) {
 
 bool QuesoX86 :: jcc (const Operand * condition) {
     Variable eip(32, "eip");
+    Operand * dst = operandGet(0);
+
     if (ud_obj.operand[0].type == UD_OP_JIMM) {
         Variable tmp(32, "tmp");
 
-        ix86->pdi(new InstructionSignExtend(&tmp, &eip));
+        ix86->pdi(new InstructionSignExtend(&tmp, dst));
         ix86->pdi(new InstructionAdd(&tmp, &eip, &tmp));
         ix86->pdi(new InstructionIte(&eip, condition, &tmp, &eip));
     }
     else {
-        Operand * dst = operandGet(0);
-
         ix86->pdi(new InstructionIte(&eip, condition, dst, &eip));
     }
+
+    delete dst;
 
     return true;
 }
@@ -401,6 +405,32 @@ bool QuesoX86 :: And () {
     operandSet(0, &tmp);
 
     delete lhs;
+    delete rhs;
+
+    return true;
+}
+
+
+bool QuesoX86 :: call () {
+    Variable eip(32, "eip");
+    Variable esp(32, "esp");
+    Constant four(32, 4);
+    Array    memory(8, "memory", 32);
+
+    // push ret addr
+    ix86->pdi(new InstructionSub(&esp, &esp, &four));
+    ix86->pdi(new InstructionStoreLE32(&memory, &esp, &eip));
+
+    Operand * rhs = operandGet(0);
+
+    if (ud_obj.operand[0].type == UD_OP_JIMM) {
+        Variable rhs_sext(32, "rhs_sext");
+        ix86->pdi(new InstructionSignExtend(&rhs_sext, rhs));
+        ix86->pdi(new InstructionAdd(&eip, &eip, &rhs_sext));
+    }
+    else
+        ix86->pdi(new InstructionAdd(&eip, &eip, rhs));
+
     delete rhs;
 
     return true;
@@ -825,6 +855,36 @@ bool QuesoX86 :: ret () {
 
     ix86->pdi(new InstructionLoadLE32(&eip, &memory, &esp));
     ix86->pdi(new InstructionAdd(&esp, &esp, &four));
+
+    return true;
+}
+
+
+bool QuesoX86 :: sub () {
+    Operand * lhs = operandGet(0);
+    Operand * rhs = operandGet(1);
+    Variable tmp(32, "tmp");
+
+    Variable OFTmp(lhs->g_bits(), "OFTmp");
+    Constant OFTmpShr(lhs->g_bits(), lhs->g_bits() - 1);
+    Variable OF(1, "OF");
+    Variable CF(1, "CF");
+    Variable ZF(1, "ZF");
+    Variable SF(1, "SF");
+    Constant zero(lhs->g_bits(), 0);
+
+    ix86->pdi(new InstructionSub(&tmp, lhs, rhs));
+
+    ix86->pdi(new InstructionXor(&OFTmp, &tmp, lhs));
+    ix86->pdi(new InstructionShr(&OF, &OFTmp, &OFTmpShr));
+    ix86->pdi(new InstructionCmpLtu(&CF, lhs, &tmp));
+    ix86->pdi(new InstructionCmpEq(&ZF, &tmp, &zero));
+    ix86->pdi(new InstructionCmpLts(&SF, &tmp, &zero));
+
+    operandSet(0, &tmp);
+
+    delete lhs;
+    delete rhs;
 
     return true;
 }

@@ -1,6 +1,7 @@
 #include "lua.h"
 
 #include "translators/x86queso.h"
+#include "luint64.h"
 
 static const struct luaL_Reg lqueso_instruction_m [] = {
     {"__gc", lqueso_instruction_gc},
@@ -55,7 +56,7 @@ LUALIB_API int luaopen_lqueso (lua_State * L) {
     lua_pushvalue(L, -2);
     lua_settable(L, -3);
 
-    return 4;
+    return 4 + luaopen_luint64(L);
 }
 
 
@@ -201,7 +202,7 @@ int lqueso_machineVariable_value (lua_State * L) {
     MachineVariable * machineVariable = lqueso_machineVariable_check(L, -1);
     lua_pop(L, 1);
 
-    lua_pushinteger(L, machineVariable->g_value());
+    luint64_push(L, machineVariable->g_value());
 
     return 1;
 }
@@ -211,7 +212,7 @@ int lqueso_machineVariable_bits (lua_State * L) {
     MachineVariable * machineVariable = lqueso_machineVariable_check(L, -1);
     lua_pop(L, 1);
 
-    lua_pushinteger(L, machineVariable->g_bits());
+    lua_pushnumber(L, machineVariable->g_bits());
 
     return 1;
 }
@@ -254,7 +255,7 @@ int lqueso_machine_gc (lua_State * L) {
 
 int lqueso_machine_s_memory (lua_State * L) {
     Machine * machine = lqueso_machine_check(L, 1);
-    uint64_t address = (uint64_t) luaL_checkinteger(L, 2);
+    uint64_t address = luint64_check(L, 2);
     size_t size;
     const char * buf = luaL_checklstring(L, 3, &size);
 
@@ -268,8 +269,8 @@ int lqueso_machine_s_memory (lua_State * L) {
 
 int lqueso_machine_g_memory (lua_State * L) {
     Machine * machine = lqueso_machine_check(L, 1);
-    uint64_t address = (uint64_t) luaL_checkinteger(L, 2);
-    size_t size = (size_t) luaL_checkinteger(L, 3);
+    uint64_t address = (uint64_t) luint64_check(L, 2);
+    size_t size = (size_t) luaL_checknumber(L, 3);
 
     MachineBuffer machineBuffer = machine->g_memory(address, size);
 
@@ -286,10 +287,12 @@ int lqueso_machine_g_memory (lua_State * L) {
 int lqueso_machine_s_variable (lua_State * L) {
     Machine * machine = lqueso_machine_check(L, 1);
     const char * name = luaL_checkstring(L, 2);
-    uint64_t value = (uint64_t) luaL_checkinteger(L, 3);
-    uint8_t  bits  = (uint8_t)  luaL_checkinteger(L, 4);
+    uint64_t value = (uint64_t) luint64_check(L, 3);
+    uint8_t  bits  = (uint8_t)  luaL_checknumber(L, 4);
 
-    machine->s_variable(MachineVariable(name, value, bits));
+    uint64_t mask = (((uint64_t) 1) << bits) - 1;
+
+    machine->s_variable(MachineVariable(name, value & mask, bits));
 
     lua_pop(L, 4);
 

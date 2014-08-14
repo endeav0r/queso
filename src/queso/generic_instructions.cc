@@ -33,9 +33,9 @@ void InstructionLoadLE16 :: init () {
     push_depth_instruction(new InstructionLoad(&load8l, memory, address));
     push_depth_instruction(new InstructionAdd(&tmpAddress, address, &one));
     push_depth_instruction(new InstructionLoad(&load8h, memory, &tmpAddress));
-    push_depth_instruction(new InstructionAssign(dst, &load8l));
-    push_depth_instruction(new InstructionShl(dst, dst, &eight));
     push_depth_instruction(new InstructionOr(dst, dst, &load8h));
+    push_depth_instruction(new InstructionShl(dst, dst, &eight));
+    push_depth_instruction(new InstructionAssign(dst, &load8l));
 }
 
 
@@ -88,29 +88,34 @@ InstructionLoadLE32 :: ~InstructionLoadLE32 () {
 }
 
 void InstructionLoadLE32 :: init () {
-    Variable load8(8, "load8");
+    Variable load8_0(8, "load8_0");
+    Variable load8_1(8, "load8_1");
+    Variable load8_2(8, "load8_2");
+    Variable load8_3(8, "load8_3");
+
     Variable tmpAddress(address->g_bits(), "tmpAddress");
     Constant one(address->g_bits(), 1);
     Variable tmp(dst->g_bits(), "tmpLoad");
     Constant eight(32, 8);
 
-    push_depth_instruction(new InstructionLoad(&load8, memory, address));
-    push_depth_instruction(new InstructionAssign(dst, &load8));
-    push_depth_instruction(new InstructionShl(dst, dst, &eight));
+    push_depth_instruction(new InstructionLoad(&load8_0, memory, address));
     push_depth_instruction(new InstructionAdd(&tmpAddress, address, &one));
 
-    push_depth_instruction(new InstructionLoad(&load8, memory, &tmpAddress));
-    push_depth_instruction(new InstructionOr(dst, dst, &load8));
-    push_depth_instruction(new InstructionShl(dst, dst, &eight));
+    push_depth_instruction(new InstructionLoad(&load8_1, memory, &tmpAddress));
     push_depth_instruction(new InstructionAdd(&tmpAddress, &tmpAddress, &one));
 
-    push_depth_instruction(new InstructionLoad(&load8, memory, &tmpAddress));
-    push_depth_instruction(new InstructionOr(dst, dst, &load8));
-    push_depth_instruction(new InstructionShl(dst, dst, &eight));
+    push_depth_instruction(new InstructionLoad(&load8_2, memory, &tmpAddress));
     push_depth_instruction(new InstructionAdd(&tmpAddress, &tmpAddress, &one));
 
-    push_depth_instruction(new InstructionLoad(&load8, memory, &tmpAddress));
-    push_depth_instruction(new InstructionOr(dst, dst, &load8));
+    push_depth_instruction(new InstructionLoad(&load8_3, memory, &tmpAddress));
+
+    push_depth_instruction(new InstructionAssign(dst, &load8_3));
+    push_depth_instruction(new InstructionShl(dst, dst, &eight));
+    push_depth_instruction(new InstructionOr(dst, dst, &load8_2));
+    push_depth_instruction(new InstructionShl(dst, dst, &eight));
+    push_depth_instruction(new InstructionOr(dst, dst, &load8_1));
+    push_depth_instruction(new InstructionShl(dst, dst, &eight));
+    push_depth_instruction(new InstructionOr(dst, dst, &load8_0));
 }
 
 

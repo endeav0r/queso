@@ -47,6 +47,7 @@ class QuesoX86 : public Translator {
 
         bool add ();
         bool And ();
+        bool call ();
         bool cmova ();
         bool cmovb ();
         bool cmovbe ();
@@ -82,6 +83,7 @@ class QuesoX86 : public Translator {
         bool pop ();
         bool push ();
         bool ret ();
+        bool sub ();
         bool test ();
         bool Xor ();
 

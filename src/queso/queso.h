@@ -45,9 +45,9 @@ class Operand {
         unsigned int g_ssa  () const { return ssa; }
         void s_ssa (unsigned int ssa) { this->ssa = ssa; }
 
-        virtual std::string smtlib2             () = 0;
-        virtual std::string smtlib2_declaration () = 0;
-        virtual std::string queso               () = 0;
+        virtual std::string smtlib2             () const = 0;
+        virtual std::string smtlib2_declaration () const = 0;
+        virtual std::string queso               () const = 0;
         virtual OperandType g_type              () const = 0;
         virtual Operand *   copy                () const = 0;
 };
@@ -64,9 +64,9 @@ class Variable : public Operand {
         const std::string & g_name () const { return name; }
         Variable * copy () const;
 
-        std::string smtlib2 ();
-        std::string smtlib2_declaration ();
-        std::string queso ();
+        std::string smtlib2 () const;
+        std::string smtlib2_declaration () const;
+        std::string queso () const;
 };
 
 class Array : public Operand {
@@ -83,9 +83,9 @@ class Array : public Operand {
         unsigned int g_address_bits () const { return address_bits; }
         Array * copy () const;
 
-        std::string smtlib2 ();
-        std::string smtlib2_declaration ();
-        std::string queso ();
+        std::string smtlib2 () const;
+        std::string smtlib2_declaration () const;
+        std::string queso () const;
 };
 
 class Constant : public Operand {
@@ -100,9 +100,9 @@ class Constant : public Operand {
 
         Constant * copy () const;
 
-        std::string smtlib2 ();
-        std::string smtlib2_declaration ();
-        std::string queso ();
+        std::string smtlib2 () const;
+        std::string smtlib2_declaration () const;
+        std::string queso () const;
 };
 
 class Instruction {
