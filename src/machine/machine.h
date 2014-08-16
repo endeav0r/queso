@@ -63,15 +63,45 @@ class Machine {
 
         int64_t  signExtend   (uint64_t variable, unsigned int inBits, unsigned int outBits);
         uint64_t operandValue (const Operand * operand);
+        void     s_memory     (uint64_t address, uint8_t value);
+        uint8_t  g_memory     (uint64_t address);
+        void     s_variable_internal (const MachineVariable & machineVariable);
+
+        void (* memReadHook)  (Machine * machine, uint64_t address, uint8_t value);
+        void (* memWriteHook) (Machine * machine, uint64_t address, uint8_t value);
+        void (* varReadHook)  (Machine * machine, const MachineVariable & machineVariable);
+        void (* varWriteHook) (Machine * machine, const MachineVariable & machineVariable);
     public :
+        Machine ();
 
         void          s_variable (const MachineVariable & machineVariable);
         void          s_memory   (uint64_t address, uint8_t * bytes, size_t size);
-        uint8_t       g_memory   (uint64_t address);
         MachineBuffer g_memory   (uint64_t address, size_t size);
 
         const MachineVariable & g_variable (std::string name) {
             return variables[name];
+        }
+
+        void s_memReadHook(void (* memReadHook) (Machine * machine,
+                                                 uint64_t address,
+                                                 uint8_t value)) {
+            this->memReadHook = memReadHook;
+        }
+
+        void s_memWriteHook(void (* memWriteHook) (Machine * machine,
+                                                   uint64_t address,
+                                                   uint8_t value)) {
+            this->memWriteHook = memWriteHook;
+        }
+
+        void s_varReadHook(void (* varReadHook) (Machine * machine,
+                                                 const MachineVariable & machineVariable)) {
+            this->varReadHook = varReadHook;
+        }
+
+        void s_varWriteHook(void (* varWriteHook) (Machine * machine,
+                                                   const MachineVariable & machineVariable)) {
+            this->varWriteHook = varWriteHook;
         }
 
         void concreteExecution (const Instruction * instruction);

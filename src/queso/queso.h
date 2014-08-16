@@ -115,7 +115,7 @@ class Instruction {
         void copy_depth_instructions (const Instruction * srcInstruction);
     public :
         Instruction (uint64_t pc)
-            : pc (pc), pc_set (false), opcode (USER) {}
+            : pc (pc), pc_set (true), opcode (USER) {}
         Instruction ()
             : pc_set (false), opcode (USER) {}
         Instruction (uint64_t pc, QuesoOpcode opcode)
@@ -140,8 +140,8 @@ class Instruction {
         virtual const std::list <Operand *> operands_read () { return std::list <Operand *>(); }
         virtual const std::list <Operand *> operands () { return std::list <Operand *>(); }
         
-        virtual const std::string smtlib2 () { return ""; }
-        virtual const std::string queso   () = 0;
+        virtual const std::string smtlib2 () const { return ""; }
+        virtual const std::string queso   () const = 0;
 
         virtual Instruction * copy () = 0;
 };
@@ -164,8 +164,8 @@ class InstructionAssign : public Instruction {
         const std::list <Operand *> operands_read ();
         const std::list <Operand *> operands ();
 
-        const std::string smtlib2 ();
-        const std::string queso   ();
+        const std::string smtlib2 () const;
+        const std::string queso   () const;
 
         InstructionAssign * copy ();
 };
@@ -196,8 +196,8 @@ class InstructionStore : public Instruction {
         const std::list <Operand *> operands_read ();
         const std::list <Operand *> operands ();
 
-        const std::string queso ();
-        const std::string smtlib2 ();
+        const std::string queso   () const;
+        const std::string smtlib2 () const;
 
         InstructionStore * copy ();
 };
@@ -219,8 +219,8 @@ class InstructionLoad : public Instruction {
         const std::list <Operand *> operands_read ();
         const std::list <Operand *> operands ();
 
-        const std::string queso ();
-        const std::string smtlib2 ();
+        const std::string queso   () const;
+        const std::string smtlib2 () const;
 
         InstructionLoad * copy ();
 };
@@ -247,8 +247,8 @@ class InstructionIte : public Instruction {
         const std::list <Operand *> operands_read ();
         const std::list <Operand *> operands ();
 
-        const std::string queso ();
-        const std::string smtlib2 ();
+        const std::string queso   () const;
+        const std::string smtlib2 () const;
 
         InstructionIte * copy ();
 };
@@ -269,8 +269,8 @@ class InstructionSignExtend : public Instruction {
         const std::list <Operand *> operands_read ();
         const std::list <Operand *> operands ();
 
-        const std::string queso ();
-        const std::string smtlib2 ();
+        const std::string queso   () const;
+        const std::string smtlib2 () const;
 
         InstructionSignExtend * copy ();
 };
@@ -303,8 +303,8 @@ class InstructionArithmetic : public Instruction {
         const std::list <Operand *> operands_read ();
         const std::list <Operand *> operands ();
 
-        const std::string queso ();
-        const std::string smtlib2 ();
+        const std::string queso   () const;
+        const std::string smtlib2 () const;
 };
 
 class InstructionAdd : public InstructionArithmetic {
@@ -435,8 +435,8 @@ class InstructionCmp : public Instruction {
         const std::list <Operand *> operands_read ();
         const std::list <Operand *> operands ();
 
-        const std::string queso ();
-        const std::string smtlib2 ();
+        const std::string queso   () const;
+        const std::string smtlib2 () const;
 };
 
 class InstructionCmpEq : public InstructionCmp {

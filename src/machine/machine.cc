@@ -6,9 +6,26 @@
 #define DEBUG_ENGINE
 //#define DEBUG_ENGINE_MEMORY
 
+
+Machine :: Machine () {
+    memReadHook = NULL;
+    memWriteHook = NULL;
+    varReadHook = NULL;
+    varWriteHook = NULL;
+}
+
+
+void Machine :: s_variable_internal (const MachineVariable & machineVariable) {
+    this->variables[machineVariable.g_name()] = machineVariable;
+    if (varWriteHook != NULL)
+        varWriteHook(this, machineVariable);
+}
+
+
 void Machine :: s_variable (const MachineVariable & machineVariable) {
     this->variables[machineVariable.g_name()] = machineVariable;
 }
+
 
 void Machine :: s_memory (uint64_t address, uint8_t * bytes, size_t size) {
     for (size_t i = 0; i < size; i++) {
@@ -23,10 +40,20 @@ void Machine :: s_memory (uint64_t address, uint8_t * bytes, size_t size) {
 }
 
 
+void Machine :: s_memory (uint64_t address, uint8_t value) {
+    this->memory[address] = value;
+    if (memWriteHook != NULL)
+        memWriteHook(this, address, value);
+}
+
+
 uint8_t Machine :: g_memory (uint64_t address) {
     #ifdef DEBUG_ENGINE_MEMORY
     std::cout << "DEBUG_ENGINE_MEMORY g_memory " << std::hex << address << std::endl;
     #endif
+
+    if (memReadHook != NULL)
+        memReadHook(this, address, memory[address]);
     return memory[address];
 }
 
@@ -68,8 +95,11 @@ int64_t Machine :: signExtend (uint64_t variable, unsigned int inBits, unsigned 
 uint64_t Machine :: operandValue (const Operand * operand) {
     if (operand->g_type() == CONSTANT)
         return dynamic_cast<const Constant *>(operand)->g_value();
-    else if (operand->g_type() == VARIABLE)
+    else if (operand->g_type() == VARIABLE) {
+        if (varReadHook != NULL)
+            varReadHook(this, variables[dynamic_cast<const Variable *>(operand)->g_name()]);
         return variables[dynamic_cast<const Variable *>(operand)->g_name()].g_value();
+    }
 
     throw INVALID_OPERAND_TYPE;
     return -1;
@@ -83,7 +113,7 @@ void Machine :: concreteExecution (const Instruction * instruction) {
         MachineVariable dst(ins->g_dst()->g_name(),
                             operandValue(ins->g_src()),
                             ins->g_dst()->g_bits());
-        variables[dst.g_name()] = dst;
+        s_variable_internal(dst);
     }
 
     // STORE
@@ -92,21 +122,19 @@ void Machine :: concreteExecution (const Instruction * instruction) {
         std::cout << "DEBUG_ENGINE store [" << std::hex << operandValue(ins->g_address())
                   << "] = " << std::hex << operandValue(ins->g_value()) << std::endl;
         #endif
-        memory[operandValue(ins->g_address())] = operandValue(ins->g_value());
+        s_memory(operandValue(ins->g_address()), operandValue(ins->g_value()));
     }
 
     // LOAD
     else if (const InstructionLoad * ins = dynamic_cast<const InstructionLoad *>(instruction)) {
         #ifdef DEBUG_ENGINE
         std::cout << "DEBUG_ENGINE load " << ins->g_dst()->queso() << " = "
-                  << "[" << std::hex << operandValue(ins->g_address()) << "] -- "
-                  << std::hex << memory[operandValue(ins->g_address())]
-                  << std::endl;
+                  << "[" << std::hex << operandValue(ins->g_address()) << "]" << std::endl;
         #endif
         MachineVariable dst(ins->g_dst()->g_name(),
-                            memory[operandValue(ins->g_address())],
+                            g_memory(operandValue(ins->g_address())),
                             ins->g_dst()->g_bits());
-        variables[dst.g_name()] = dst;
+        s_variable_internal(dst);
     }
 
     // ITE
@@ -123,13 +151,13 @@ void Machine :: concreteExecution (const Instruction * instruction) {
             MachineVariable dst(ins->g_dst()->g_name(),
                                 operandValue(ins->g_t()),
                                 ins->g_dst()->g_bits());
-            variables[dst.g_name()] = dst;
+            s_variable_internal(dst);
         }
         else {
             MachineVariable dst(ins->g_dst()->g_name(),
                                 operandValue(ins->g_e()),
                                 ins->g_dst()->g_bits());
-            variables[dst.g_name()] = dst;
+            s_variable_internal(dst);
         }
     }
 
@@ -140,7 +168,7 @@ void Machine :: concreteExecution (const Instruction * instruction) {
                                                     ins->g_src()->g_bits(),
                                                     ins->g_dst()->g_bits()),
                             ins->g_dst()->g_bits());
-        variables[dst.g_name()] = dst;
+        s_variable_internal(dst);
     }
 
     // ADD
@@ -155,7 +183,7 @@ void Machine :: concreteExecution (const Instruction * instruction) {
         MachineVariable dst(ins->g_dst()->g_name(),
                             operandValue(ins->g_lhs()) + operandValue(ins->g_rhs()),
                             ins->g_dst()->g_bits());
-        variables[dst.g_name()] = dst;
+        s_variable_internal(dst);
     }
 
     // SUB
@@ -163,7 +191,7 @@ void Machine :: concreteExecution (const Instruction * instruction) {
         MachineVariable dst(ins->g_dst()->g_name(),
                             operandValue(ins->g_lhs()) - operandValue(ins->g_rhs()),
                             ins->g_dst()->g_bits());
-        variables[dst.g_name()] = dst;
+        s_variable_internal(dst);
     }
 
     // MUL
@@ -171,7 +199,7 @@ void Machine :: concreteExecution (const Instruction * instruction) {
         MachineVariable dst(ins->g_dst()->g_name(),
                             operandValue(ins->g_lhs()) * operandValue(ins->g_rhs()),
                             ins->g_dst()->g_bits());
-        variables[dst.g_name()] = dst;
+        s_variable_internal(dst);
     }
 
     // UDIV
@@ -179,7 +207,7 @@ void Machine :: concreteExecution (const Instruction * instruction) {
         MachineVariable dst(ins->g_dst()->g_name(),
                             operandValue(ins->g_lhs()) / operandValue(ins->g_rhs()),
                             ins->g_dst()->g_bits());
-        variables[dst.g_name()] = dst;
+        s_variable_internal(dst);
     }
 
     // UMOD
@@ -187,7 +215,7 @@ void Machine :: concreteExecution (const Instruction * instruction) {
         MachineVariable dst(ins->g_dst()->g_name(),
                             operandValue(ins->g_lhs()) % operandValue(ins->g_rhs()),
                             ins->g_dst()->g_bits());
-        variables[dst.g_name()] = dst;
+        s_variable_internal(dst);
     }
 
     // AND
@@ -195,7 +223,7 @@ void Machine :: concreteExecution (const Instruction * instruction) {
         MachineVariable dst(ins->g_dst()->g_name(),
                             operandValue(ins->g_lhs()) & operandValue(ins->g_rhs()),
                             ins->g_dst()->g_bits());
-        variables[dst.g_name()] = dst;
+        s_variable_internal(dst);
     }
 
     // OR
@@ -203,7 +231,7 @@ void Machine :: concreteExecution (const Instruction * instruction) {
         MachineVariable dst(ins->g_dst()->g_name(),
                             operandValue(ins->g_lhs()) | operandValue(ins->g_rhs()),
                             ins->g_dst()->g_bits());
-        variables[dst.g_name()] = dst;
+        s_variable_internal(dst);
     }
 
     // XOR
@@ -211,7 +239,7 @@ void Machine :: concreteExecution (const Instruction * instruction) {
         MachineVariable dst(ins->g_dst()->g_name(),
                             operandValue(ins->g_lhs()) ^ operandValue(ins->g_rhs()),
                             ins->g_dst()->g_bits());
-        variables[dst.g_name()] = dst;
+        s_variable_internal(dst);
     }
 
     // SHL
@@ -219,7 +247,7 @@ void Machine :: concreteExecution (const Instruction * instruction) {
         MachineVariable dst(ins->g_dst()->g_name(),
                             operandValue(ins->g_lhs()) << operandValue(ins->g_rhs()),
                             ins->g_dst()->g_bits());
-        variables[dst.g_name()] = dst;
+        s_variable_internal(dst);
     }
 
     // SHR
@@ -227,7 +255,7 @@ void Machine :: concreteExecution (const Instruction * instruction) {
         MachineVariable dst(ins->g_dst()->g_name(),
                             operandValue(ins->g_lhs()) >> operandValue(ins->g_rhs()),
                             ins->g_dst()->g_bits());
-        variables[dst.g_name()] = dst;
+        s_variable_internal(dst);
     }
 
     // CMPEQ
@@ -235,7 +263,7 @@ void Machine :: concreteExecution (const Instruction * instruction) {
         unsigned int result = 0;
         if (operandValue(ins->g_lhs()) == operandValue(ins->g_rhs()))
             result = 1;
-        variables[ins->g_dst()->g_name()] = MachineVariable(ins->g_dst()->g_name(), result, 1);
+        s_variable_internal(MachineVariable(ins->g_dst()->g_name(), result, 1));
     }
 
     // CMPLTU
@@ -243,7 +271,7 @@ void Machine :: concreteExecution (const Instruction * instruction) {
         unsigned int result = 0;
         if (operandValue(ins->g_lhs()) < operandValue(ins->g_rhs()))
             result = 1;
-        variables[ins->g_dst()->g_name()] = MachineVariable(ins->g_dst()->g_name(), result, 1);
+        s_variable_internal(MachineVariable(ins->g_dst()->g_name(), result, 1));
     }
 
     // CMPLTS
@@ -253,7 +281,7 @@ void Machine :: concreteExecution (const Instruction * instruction) {
         int64_t rhs = signExtend(operandValue(ins->g_rhs()), 64, ins->g_rhs()->g_bits());
         if (lhs < rhs)
             result = 1;
-        variables[ins->g_dst()->g_name()] = MachineVariable(ins->g_dst()->g_name(), result, 1);
+        s_variable_internal(MachineVariable(ins->g_dst()->g_name(), result, 1));
     }
 
     // CMPLEU
@@ -261,7 +289,7 @@ void Machine :: concreteExecution (const Instruction * instruction) {
         unsigned int result = 0;
         if (operandValue(ins->g_lhs()) <= operandValue(ins->g_rhs()))
             result = 1;
-        variables[ins->g_dst()->g_name()] = MachineVariable(ins->g_dst()->g_name(), result, 1);
+        s_variable_internal(MachineVariable(ins->g_dst()->g_name(), result, 1));
     }
 
     // CMPLES
@@ -271,7 +299,7 @@ void Machine :: concreteExecution (const Instruction * instruction) {
         int64_t rhs = signExtend(operandValue(ins->g_rhs()), 64, ins->g_rhs()->g_bits());
         if (lhs <= rhs)
             result = 1;
-        variables[ins->g_dst()->g_name()] = MachineVariable(ins->g_dst()->g_name(), result, 1);
+        s_variable_internal(MachineVariable(ins->g_dst()->g_name(), result, 1));
     }
 
     std::list <Instruction *> :: const_iterator it;

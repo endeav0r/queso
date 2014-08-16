@@ -4,21 +4,51 @@
 #include "queso/queso.h"
 #include "translator.h"
 
+#include <cstring>
 #include <udis86.h>
 
 class InstructionX86 : public Instruction {
     private :
         std::string text;
+        unsigned char * bytes;
+        size_t size;
     public :
-        InstructionX86 (const std::string & text)
-            : Instruction (), text (text) {}
+        InstructionX86 (const std::string & text,
+                        const unsigned char * bytes,
+                        size_t size)
+            : Instruction (), text (text) {
+                this->bytes = new unsigned char [size];
+                memcpy(this->bytes, bytes, size);
+                this->size = size;
+            }
 
-        const std::string queso   () { return text; }
+        InstructionX86 (const std::string & text,
+                        const unsigned char * bytes,
+                        size_t size,
+                        uint64_t pc)
+            : Instruction (pc), text (text) {
+                this->bytes = new unsigned char [size];
+                memcpy(this->bytes, bytes, size);
+                this->size = size;
+            }
+
+        ~InstructionX86 () {
+            delete[] bytes;
+        }
+
+        const unsigned char * g_bytes () { return bytes; }
+        size_t g_size () { return size; }
+
+        const std::string queso () const { return text; }
 
         void pdi (Instruction * ins) { push_depth_instruction(ins); }
 
         InstructionX86 * copy () {
-            InstructionX86 * newIns = new InstructionX86(text);
+            InstructionX86 * newIns;
+            if (g_pc_set())
+                newIns = new InstructionX86(text, bytes, size, g_pc());
+            else
+                newIns = new InstructionX86(text, bytes, size);
             newIns->copy_depth_instructions(this);
             return newIns;
         }
@@ -83,13 +113,20 @@ class QuesoX86 : public Translator {
         bool pop ();
         bool push ();
         bool ret ();
+        bool shr ();
         bool sub ();
         bool test ();
         bool Xor ();
 
+        Instruction * translate (const uint8_t * data,
+                                 size_t size,
+                                 uint64_t pc,
+                                 bool set_pc);
+
     public :
         QuesoX86 () {ix86 = NULL;}
         Instruction * translate (const uint8_t * data, size_t size);
+        Instruction * translate (const uint8_t * data, size_t size, uint64_t pc);
 };
 
 #endif

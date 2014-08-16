@@ -9,7 +9,11 @@
 
 #define DEBUG_x86TRANSLATE
 
-Instruction * QuesoX86 :: translate (const uint8_t * data, size_t size) {
+
+Instruction * QuesoX86 :: translate (const uint8_t * data,
+                                     size_t size,
+                                     uint64_t pc,
+                                     bool setpc) {
     if (ix86 != NULL)
         delete ix86;
 
@@ -26,7 +30,10 @@ Instruction * QuesoX86 :: translate (const uint8_t * data, size_t size) {
     printf("DEBUG_X86TRANSLATE %s\n", ud_insn_asm(&ud_obj));fflush(stdout);
     #endif
 
-    ix86 = new InstructionX86(ud_insn_asm(&ud_obj));
+    if (setpc)
+        ix86 = new InstructionX86(ud_insn_asm(&ud_obj), data, ud_insn_len(&ud_obj), pc);
+    else
+        ix86 = new InstructionX86(ud_insn_asm(&ud_obj), data, ud_insn_len(&ud_obj));
 
     ix86->pdi(new InstructionAdd(Variable(32, "eip"),
                                  Variable(32, "eip"),
@@ -70,6 +77,7 @@ Instruction * QuesoX86 :: translate (const uint8_t * data, size_t size) {
     case UD_Ipop    : pop(); break;
     case UD_Ipush   : push(); break;
     case UD_Iret    : ret(); break;
+    case UD_Ishr    : shr(); break;
     case UD_Isub    : sub(); break;
     case UD_Itest   : test(); break;
     case UD_Ixor    : Xor(); break;
@@ -78,6 +86,16 @@ Instruction * QuesoX86 :: translate (const uint8_t * data, size_t size) {
     }
 
     return ix86;
+}
+
+
+Instruction * QuesoX86 :: translate (const uint8_t * data, size_t size) {
+    return translate(data, size, 0, false);
+}
+
+
+Instruction * QuesoX86 :: translate (const uint8_t * data, size_t size, uint64_t pc) {
+    return translate(data, size, pc, true);
 }
 
 
@@ -855,6 +873,27 @@ bool QuesoX86 :: ret () {
 
     ix86->pdi(new InstructionLoadLE32(&eip, &memory, &esp));
     ix86->pdi(new InstructionAdd(&esp, &esp, &four));
+
+    return true;
+}
+
+
+bool QuesoX86 :: shr () {
+    Operand * dst = operandGet(0);
+    Operand * bits = operandGet(1);
+    Variable tmp(dst->g_bits(), "tmp");
+
+    ix86->pdi(new InstructionShr(&tmp, dst, bits));
+
+    Variable CF(1, "CF");
+    Variable bitsMinusOne(dst->g_bits(), "bitsMinusOne");
+    Constant one(dst->g_bits(), 1);
+
+    Variable OF(1, "OF");
+    
+
+    delete dst;
+    delete bits;
 
     return true;
 }
