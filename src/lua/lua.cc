@@ -47,6 +47,13 @@ static const struct luaL_Reg lqueso_memoryModel_m [] = {
     {NULL, NULL}
 };
 
+static const struct luaL_Reg lqueso_elf32_m [] = {
+    {"__gc", lqueso_elf32_gc},
+    {"entry", lqueso_elf32_entry},
+    {"memoryModel", lqueso_elf32_memoryModel},
+    {NULL, NULL}
+};
+
 static const struct luaL_Reg lqueso_lib_f [] = {
     {"machine", lqueso_machine_new},
     {"x86translate", lqueso_x86translate},
@@ -83,6 +90,12 @@ LUALIB_API int luaopen_lqueso (lua_State * L) {
 
     luaL_newmetatable(L, "lqueso.memoryModel");
     luaL_register(L, NULL, lqueso_memoryModel_m);
+    lua_pushstring(L, "__index");
+    lua_pushvalue(L, -2);
+    lua_settable(L, -3);
+
+    luaL_newmetatable(L, "lqueso.elf32");
+    luaL_register(L, NULL, lqueso_elf32_m);
     lua_pushstring(L, "__index");
     lua_pushvalue(L, -2);
     lua_settable(L, -3);
@@ -483,6 +496,62 @@ int lqueso_memoryModel_g_byte (lua_State * L) {
     lua_pop(L, 2);
 
     lua_pushinteger(L, memoryModel->g_byte(address));
+
+    return 1;
+}
+
+
+/**********************************************************
+* lqueso_elf32
+**********************************************************/
+
+
+int lqueso_elf32_push (lua_State * L, Elf32 * elf32) {
+    Elf32 ** eelf32 = (Elf32 **) lua_newuserdata(L, sizeof(Elf32 **));
+    luaL_getmetatable(L, "lqueso.elf32");
+    lua_setmetatable(L, -2);
+
+    **eelf32 = *elf32;
+
+    return 1;
+}
+
+
+Elf32 * lqueso_elf32_check (lua_State * L, int position) {
+    Elf32 * elf32;
+    void ** userdata = (void **) luaL_checkudata(L, position, "lqueso.elf32");
+    luaL_argcheck(L, userdata != NULL, position, "lqueso.elf32 expected");
+    elf32 = (Elf32 *) *userdata;
+    return elf32;
+}
+
+
+int lqueso_elf32_gc (lua_State * L) {
+    Elf32 * elf32 = lqueso_elf32_check(L, -1);
+    lua_pop(L, 1);
+
+    delete elf32;
+
+    return 0;
+}
+
+
+int lqueso_elf32_entry (lua_State * L) {
+    Elf32 * elf32 = lqueso_elf32_check(L, -1);
+    lua_pop(L, 1);
+
+    luint64_push(L, elf32->entry());
+
+    return 1;
+}
+
+
+int lqueso_elf32_memoryModel (lua_State * L) {
+    Elf32 * elf32 = lqueso_elf32_check(L, -1);
+    lua_pop(L, 1);
+
+    MemoryModel memoryModel = elf32->memoryModel();
+    lqueso_memoryModel_push(L, &memoryModel);
 
     return 1;
 }

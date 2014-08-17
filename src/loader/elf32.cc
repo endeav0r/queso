@@ -3,6 +3,17 @@
 #include <cstdio>
 #include <elf.h>
 
+
+const Elf32_Ehdr * Elf32 :: ehdr () {
+    return (Elf32_Ehdr *) data;
+}
+
+
+const Elf32_Phdr * Elf32 :: phdr (unsigned int index) {
+    return (Elf32_Phdr *) &(data[ehdr()->e_phoff + (ehdr()->e_phentsize * index)]);
+}
+
+
 Elf32 * Elf32 :: load (const std::string filename) {
     FILE * fh = fopen(filename.c_str(), "rb");
     if (fh == NULL)
@@ -46,4 +57,26 @@ Elf32 * Elf32 :: load (const std::string filename) {
     fclose(fh);
 
     return elf32;
+}
+
+
+uint64_t Elf32 :: entry () {
+    return ehdr()->e_entry;
+}
+
+
+MemoryModel Elf32 :: memoryModel () {
+    MemoryModel memoryModel;
+
+    for (size_t phdr_i = 0; phdr_i < ehdr()->e_phnum; phdr_i++) {
+        const Elf32_Phdr * phdr_ = phdr(phdr_i);
+        for (size_t i = 0; i < phdr_->p_memsz; i++) {
+            if (i < phdr_->p_filesz)
+                memoryModel.s_byte(phdr_->p_vaddr + i, data[phdr_->p_offset + i]);
+            else
+                memoryModel.s_byte(phdr_->p_vaddr + i, 0);
+        }
+    }
+
+    return memoryModel;
 }
