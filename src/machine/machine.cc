@@ -112,14 +112,16 @@ int64_t Machine :: signExtend (uint64_t variable, unsigned int inBits, unsigned 
 
 
 uint64_t Machine :: operandValue (const Operand * operand) {
-    if (operand->g_type() == CONSTANT)
+    if (operand->g_type() == CONSTANT) {
         return dynamic_cast<const Constant *>(operand)->g_value();
+    }
     else if (operand->g_type() == VARIABLE) {
         if (pre_varReadHook != NULL)
             pre_varReadHook(this,
                             dynamic_cast<const Variable *>(operand),
                             pre_varReadHook_data);
-        uint64_t value = variables[dynamic_cast<const Variable *>(operand)->g_name()].g_value();
+        std::string variableName = dynamic_cast<const Variable *>(operand)->g_name();
+        uint64_t value = variables[variableName].g_value();
         if (post_varReadHook != NULL)
             post_varReadHook(this,
                              variables[dynamic_cast<const Variable *>(operand)->g_name()],

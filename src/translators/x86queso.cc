@@ -7,7 +7,7 @@
 #include <sstream>
 #include <cstdio>
 
-#define DEBUG_x86TRANSLATE
+//#define DEBUG_x86TRANSLATE
 
 
 InstructionX86 * QuesoX86 :: translate (const uint8_t * data,
@@ -233,14 +233,16 @@ Operand * QuesoX86 :: sib (ud_operand operand) {
         if (operand.offset) {
             if (operand.index) {
                 Variable sib(32, "sib");
-                ix86->pdi(new InstructionAdd(sib, base, index_scale));
-                ix86->pdi(new InstructionAdd(sib, sib, displ));
+                ix86->pdi(new InstructionSignExtend(sib, displ));
+                ix86->pdi(new InstructionAdd(sib, sib, index_scale));
+                ix86->pdi(new InstructionAdd(sib, sib, base));
                 return sib.copy();
             }
             // (operand.base) (operand.offset) (! operand.index)
             else {
                 Variable sib(32, "sib");
-                ix86->pdi(new InstructionAdd(sib, base, displ));
+                ix86->pdi(new InstructionSignExtend(sib, displ));
+                ix86->pdi(new InstructionAdd(sib, sib, base));
                 return sib.copy();
             }
         }
@@ -966,6 +968,7 @@ bool QuesoX86 :: Xor () {
     Constant zero1(1, 0);
     Constant zero(lhs->g_bits(), 0);
 
+    ix86->pdi(new InstructionXor(&tmp, lhs, rhs));
     ix86->pdi(new InstructionAssign(&OF, &zero));
     ix86->pdi(new InstructionAssign(&CF, &zero));
     ix86->pdi(new InstructionCmpEq(&ZF, &tmp, &zero));
