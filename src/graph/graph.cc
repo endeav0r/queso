@@ -30,6 +30,11 @@ void GraphVertex :: deleteEdge (GraphEdge * edge) {
 }
 
 
+void GraphVertex :: insertEdge (GraphEdge * edge) {
+    this->edges.push_back(edge);
+}
+
+
 const std::list <GraphEdge *> GraphVertex :: g_successors () const {
     std::list <GraphEdge *> successors;
     std::list <GraphEdge *> :: const_iterator it;

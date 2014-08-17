@@ -11,6 +11,7 @@ class GraphVertex {
     private :
         std::list <GraphEdge *> edges;
     public :
+        GraphVertex () {}
         virtual ~GraphVertex ();
 
         void deleteEdge (GraphEdge * edge);

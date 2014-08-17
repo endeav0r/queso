@@ -1,4 +1,5 @@
-OBJS = queso/*.o translators/*.o lua/*.o machine/*.o disassembler/*.o
+OBJS = queso/*.o translators/*.o lua/*.o machine/*.o \
+       disassembler/*.o graph/*.o containers/*.o
 
 CXXFLAGS = -g -Werror -Wall -std=c++11 -O2
 LIBS = -ludis86 -llua5.1
