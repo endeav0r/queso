@@ -5,12 +5,14 @@
 #include <lua5.1/lualib.h>
 #include <lua5.1/lauxlib.h>
 
-#include "queso/queso.h"
+#include "graph/quesoGraph.h"
 #include "machine/machine.h"
+#include "queso/queso.h"
 
 LUALIB_API int luaopen_lqueso (lua_State * L);
 
-int lqueso_x86translate (lua_State * L);
+int lqueso_x86translate   (lua_State * L);
+int lqueso_x86disassemble (lua_State * L);
 
 Instruction * lqueso_instruction_check (lua_State * L, int position);
 int lqueso_instruction_push               (lua_State * L, Instruction * instruction);
@@ -33,6 +35,20 @@ int lqueso_machine_s_memory          (lua_State * L);
 int lqueso_machine_g_memory          (lua_State * L);
 int lqueso_machine_s_variable        (lua_State * L);
 int lqueso_machine_g_variable        (lua_State * L);
+int lqueso_machine_g_memoryModel     (lua_State * L);
 int lqueso_machine_concreteExecution (lua_State * L);
+
+QuesoGraph * lqueso_quesoGraph_check (lua_State * L, int position);
+int lqueso_quesoGraph_push     (lua_State * L, QuesoGraph * quesoGraph);
+int lqueso_quesoGraph_gc       (lua_State * L);
+int lqueso_quesoGraph_dotGraph (lua_State * L);
+
+MemoryModel * lqueso_memoryModel_check (lua_State * L, int position);
+int lqueso_memoryModel_push   (lua_State * L, MemoryModel * memoryModel);
+int lqueso_memoryModel_gc     (lua_State * L);
+int lqueso_memoryModel_s_byte (lua_State * L);
+int lqueso_memoryModel_g_byte (lua_State * L);
+
+
 
 #endif

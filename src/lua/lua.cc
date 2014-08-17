@@ -1,7 +1,11 @@
 #include "lua.h"
 
+#include "disassembler/x86Disassembler.h"
 #include "translators/x86queso.h"
 #include "luint64.h"
+
+#include <string>
+
 
 static const struct luaL_Reg lqueso_instruction_m [] = {
     {"__gc", lqueso_instruction_gc},
@@ -25,13 +29,28 @@ static const struct luaL_Reg lqueso_machine_m [] = {
     {"g_memory", lqueso_machine_g_memory},
     {"s_variable", lqueso_machine_s_variable},
     {"g_variable", lqueso_machine_g_variable},
+    {"g_memoryModel", lqueso_machine_g_memoryModel},
     {"concreteExecution", lqueso_machine_concreteExecution},
+    {NULL, NULL}
+};
+
+static const struct luaL_Reg lqueso_quesoGraph_m [] = {
+    {"__gc", lqueso_quesoGraph_gc},
+    {"dotGraph", lqueso_quesoGraph_dotGraph},
+    {NULL, NULL}
+};
+
+static const struct luaL_Reg lqueso_memoryModel_m [] = {
+    {"__gc", lqueso_memoryModel_gc},
+    {"s_byte", lqueso_memoryModel_s_byte},
+    {"g_byte", lqueso_memoryModel_g_byte},
     {NULL, NULL}
 };
 
 static const struct luaL_Reg lqueso_lib_f [] = {
     {"machine", lqueso_machine_new},
     {"x86translate", lqueso_x86translate},
+    {"x86disassemble", lqueso_x86disassemble},
     {NULL, NULL}
 };
 
@@ -56,6 +75,18 @@ LUALIB_API int luaopen_lqueso (lua_State * L) {
     lua_pushvalue(L, -2);
     lua_settable(L, -3);
 
+    luaL_newmetatable(L, "lqueso.quesoGraph");
+    luaL_register(L, NULL, lqueso_quesoGraph_m);
+    lua_pushstring(L, "__index");
+    lua_pushvalue(L, -2);
+    lua_settable(L, -3);
+
+    luaL_newmetatable(L, "lqueso.memoryModel");
+    luaL_register(L, NULL, lqueso_memoryModel_m);
+    lua_pushstring(L, "__index");
+    lua_pushvalue(L, -2);
+    lua_settable(L, -3);
+
     return 4 + luaopen_luint64(L);
 }
 
@@ -75,6 +106,20 @@ int lqueso_x86translate (lua_State * L) {
         return 0;
 
     lqueso_instruction_push(L, instruction);
+
+    return 1;
+}
+
+
+int lqueso_x86disassemble (lua_State * L) {
+    uint64_t entry = luint64_check(L, 1);
+    MemoryModel * memoryModel = lqueso_memoryModel_check(L, 2);
+
+    lua_pop(L, 2);
+
+    QuesoGraph quesoGraph = X86Disassembler :: disassemble(entry, memoryModel);
+
+    lqueso_quesoGraph_push(L, &quesoGraph);
 
     return 1;
 }
@@ -314,6 +359,17 @@ int lqueso_machine_g_variable (lua_State * L) {
 }
 
 
+int lqueso_machine_g_memoryModel (lua_State * L) {
+    Machine * machine = lqueso_machine_check(L, 1);
+    lua_pop(L, 1);
+
+    MemoryModel memoryModel = machine->g_memoryModel();
+    lqueso_memoryModel_push(L, &memoryModel);
+
+    return 1;
+}
+
+
 int lqueso_machine_concreteExecution (lua_State * L) {
     Machine * machine = lqueso_machine_check(L, 1);
     Instruction * instruction = lqueso_instruction_check(L, 2);
@@ -323,4 +379,110 @@ int lqueso_machine_concreteExecution (lua_State * L) {
     lua_pop(L, 2);
 
     return 0;
+}
+
+
+/**********************************************************
+* lqueso_quesoGraph
+**********************************************************/
+
+
+int lqueso_quesoGraph_push (lua_State * L, QuesoGraph * quesoGraph) {
+    QuesoGraph ** qGraph = (QuesoGraph **) lua_newuserdata(L, sizeof(QuesoGraph **));
+    luaL_getmetatable(L, "lqueso.quesoGraph");
+    lua_setmetatable(L, -2);
+
+    **qGraph = *quesoGraph;
+
+    return 1;
+}
+
+
+QuesoGraph * lqueso_quesoGraph_check (lua_State * L, int position) {
+    QuesoGraph * quesoGraph;
+    void ** userdata = (void **) luaL_checkudata(L, position, "lqueso.quesoGraph");
+    luaL_argcheck(L, userdata != NULL, position, "lqueso.quesoGraph expected");
+    quesoGraph = (QuesoGraph *) *userdata;
+    return quesoGraph;
+}
+
+
+int lqueso_quesoGraph_gc (lua_State * L) {
+    QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, -1);
+    lua_pop(L, 1);
+
+    delete quesoGraph;
+
+    return 0;
+}
+
+
+int lqueso_quesoGraph_dotGraph (lua_State * L) {
+    QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, -1);
+    lua_pop(L, 1);
+
+    std::string dotGraph = quesoGraph->dotGraph();
+    lua_pushstring(L, dotGraph.c_str());
+
+    return 1;
+}
+
+
+/**********************************************************
+* lqueso_memoryModel
+**********************************************************/
+
+
+int lqueso_memoryModel_push (lua_State * L, MemoryModel * memoryModel) {
+    MemoryModel ** mModel = (MemoryModel **) lua_newuserdata(L, sizeof(MemoryModel **));
+    luaL_getmetatable(L, "lqueso.memoryModel");
+    lua_setmetatable(L, -2);
+
+    **mModel = *memoryModel;
+
+    return 1;
+}
+
+
+MemoryModel * lqueso_memoryModel_check (lua_State * L, int position) {
+    MemoryModel * memoryModel;
+    void ** userdata = (void **) luaL_checkudata(L, position, "lqueso.memoryModel");
+    luaL_argcheck(L, userdata != NULL, position, "lqueso.memoryModel expected");
+    memoryModel = (MemoryModel *) *userdata;
+    return memoryModel;
+}
+
+
+int lqueso_memoryModel_gc (lua_State * L) {
+    MemoryModel * memoryModel = lqueso_memoryModel_check(L, -1);
+    lua_pop(L, 1);
+
+    delete memoryModel;
+
+    return 0;
+}
+
+
+int lqueso_memoryModel_s_byte (lua_State * L) {
+    MemoryModel * memoryModel = lqueso_memoryModel_check(L, 1);
+    uint64_t address = luint64_check(L, 2);
+    int byte = luaL_checknumber(L, 3);
+
+    lua_pop(L, 3);
+
+    memoryModel->s_byte(address, byte);
+
+    return 0;
+}
+
+
+int lqueso_memoryModel_g_byte (lua_State * L) {
+    MemoryModel * memoryModel = lqueso_memoryModel_check(L, 1);
+    uint64_t address = luint64_check(L, 2);
+
+    lua_pop(L, 2);
+
+    lua_pushinteger(L, memoryModel->g_byte(address));
+
+    return 1;
 }

@@ -1,11 +1,12 @@
-OBJS = queso/*.o translators/*.o lua/*.o machine/*.o
+OBJS = queso/*.o translators/*.o lua/*.o machine/*.o disassembler/*.o
 
 CXXFLAGS = -g -Werror -Wall -std=c++11 -O2
 LIBS = -ludis86 -llua5.1
 
 all :
-	make -C cfg
 	make -C containers
+	make -C disassembler
+	make -C graph
 	make -C loader
 	make -C lua
 	make -C machine
@@ -19,8 +20,9 @@ all :
 clean :
 	rm -f *.o
 	rm -f lqueso.so
-	make -C cfg clean
 	make -C containers clean
+	make -C disassembler clean
+	make -C graph clean
 	make -C loader clean
 	make -C lua clean
 	make -C machine clean

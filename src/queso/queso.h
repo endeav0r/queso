@@ -3,6 +3,7 @@
 
 #include <list>
 #include <string>
+#include "graph/graph.h"
 
 enum OperandType { VARIABLE, CONSTANT, ARRAY };
 
@@ -105,12 +106,15 @@ class Constant : public Operand {
         std::string queso () const;
 };
 
-class Instruction {
+class Instruction : public GraphVertex {
     private :
         uint64_t pc;
         bool pc_set;
         std::list <Instruction *> depth_instructions;
         QuesoOpcode opcode;
+
+        void var_dominators (std::list <std::string> & dominator_variables,
+                             std::list <const Instruction *> & dominator_instructions) const;
     protected :
         void copy_depth_instructions (const Instruction * srcInstruction);
     public :
@@ -136,14 +140,16 @@ class Instruction {
         const std::list <Instruction *> & g_depth_instructions () const;
         void push_depth_instruction (Instruction * instruction);
         
-        virtual const Operand * operand_written () { return NULL; }
-        virtual const std::list <Operand *> operands_read () { return std::list <Operand *>(); }
+        virtual const Operand * operand_written () const { return NULL; }
+        virtual const std::list <Operand *> operands_read () const { return std::list <Operand *>(); }
         virtual const std::list <Operand *> operands () { return std::list <Operand *>(); }
+
+        const std::list <const Instruction *> var_dominators (std::string name) const;
         
         virtual const std::string smtlib2 () const { return ""; }
         virtual const std::string queso   () const = 0;
 
-        virtual Instruction * copy () = 0;
+        virtual Instruction * copy () const = 0;
 };
 
 class InstructionAssign : public Instruction {
@@ -167,7 +173,7 @@ class InstructionAssign : public Instruction {
         const std::string smtlib2 () const;
         const std::string queso   () const;
 
-        InstructionAssign * copy ();
+        InstructionAssign * copy () const;
 };
 
 class InstructionStore : public Instruction {
@@ -199,7 +205,7 @@ class InstructionStore : public Instruction {
         const std::string queso   () const;
         const std::string smtlib2 () const;
 
-        InstructionStore * copy ();
+        InstructionStore * copy () const;
 };
 
 class InstructionLoad : public Instruction {
@@ -222,7 +228,7 @@ class InstructionLoad : public Instruction {
         const std::string queso   () const;
         const std::string smtlib2 () const;
 
-        InstructionLoad * copy ();
+        InstructionLoad * copy () const;
 };
 
 class InstructionIte : public Instruction {
@@ -250,7 +256,7 @@ class InstructionIte : public Instruction {
         const std::string queso   () const;
         const std::string smtlib2 () const;
 
-        InstructionIte * copy ();
+        InstructionIte * copy () const;
 };
 
 class InstructionSignExtend : public Instruction {
@@ -272,7 +278,7 @@ class InstructionSignExtend : public Instruction {
         const std::string queso   () const;
         const std::string smtlib2 () const;
 
-        InstructionSignExtend * copy ();
+        InstructionSignExtend * copy () const;
 };
 
 class InstructionArithmetic : public Instruction {
@@ -314,7 +320,7 @@ class InstructionAdd : public InstructionArithmetic {
         InstructionAdd (const Variable * dst, const Operand * lhs, const Operand * rhs)
             : InstructionArithmetic (ADD, "bvadd", dst, lhs, rhs) {}
 
-        InstructionAdd * copy () { return new InstructionAdd(dst, lhs, rhs); }
+        InstructionAdd * copy () const { return new InstructionAdd(dst, lhs, rhs); }
 };
 
 class InstructionSub : public InstructionArithmetic {
@@ -324,7 +330,7 @@ class InstructionSub : public InstructionArithmetic {
         InstructionSub (const Variable * dst, const Operand * lhs, const Operand * rhs)
             : InstructionArithmetic (SUB, "bvsub", dst, lhs, rhs) {}
 
-        InstructionSub * copy () { return new InstructionSub(dst, lhs, rhs); }
+        InstructionSub * copy () const { return new InstructionSub(dst, lhs, rhs); }
 };
 
 class InstructionMul : public InstructionArithmetic {
@@ -334,7 +340,7 @@ class InstructionMul : public InstructionArithmetic {
         InstructionMul (const Variable * dst, const Operand * lhs, const Operand * rhs)
             : InstructionArithmetic (MUL, "bvmul", dst, lhs, rhs) {}
 
-        InstructionMul * copy () { return new InstructionMul(dst, lhs, rhs); }
+        InstructionMul * copy () const { return new InstructionMul(dst, lhs, rhs); }
 };
 
 class InstructionUdiv : public InstructionArithmetic {
@@ -344,7 +350,7 @@ class InstructionUdiv : public InstructionArithmetic {
         InstructionUdiv (const Variable * dst, const Operand * lhs, const Operand * rhs)
             : InstructionArithmetic (UDIV, "bvudiv", dst, lhs, rhs) {}
 
-        InstructionUdiv * copy () { return new InstructionUdiv(dst, lhs, rhs); }
+        InstructionUdiv * copy () const { return new InstructionUdiv(dst, lhs, rhs); }
 };
 
 class InstructionUmod : public InstructionArithmetic {
@@ -354,7 +360,7 @@ class InstructionUmod : public InstructionArithmetic {
         InstructionUmod (const Variable * dst, const Operand * lhs, const Operand * rhs)
             : InstructionArithmetic (UMOD, "bvumod", dst, lhs, rhs) {}
 
-        InstructionUmod * copy () { return new InstructionUmod(dst, lhs, rhs); }
+        InstructionUmod * copy () const { return new InstructionUmod(dst, lhs, rhs); }
 };
 
 class InstructionAnd : public InstructionArithmetic {
@@ -364,7 +370,7 @@ class InstructionAnd : public InstructionArithmetic {
         InstructionAnd (const Variable * dst, const Operand * lhs, const Operand * rhs)
             : InstructionArithmetic (AND, "bvand", dst, lhs, rhs) {}
 
-        InstructionAnd * copy () { return new InstructionAnd(dst, lhs, rhs); }
+        InstructionAnd * copy () const { return new InstructionAnd(dst, lhs, rhs); }
 };
 
 class InstructionOr : public InstructionArithmetic {
@@ -374,7 +380,7 @@ class InstructionOr : public InstructionArithmetic {
         InstructionOr (const Variable * dst, const Operand * lhs, const Operand * rhs)
             : InstructionArithmetic (OR, "bvor", dst, lhs, rhs) {}
 
-        InstructionOr * copy () { return new InstructionOr(dst, lhs, rhs); }
+        InstructionOr * copy () const { return new InstructionOr(dst, lhs, rhs); }
 };
 
 class InstructionXor : public InstructionArithmetic {
@@ -384,7 +390,7 @@ class InstructionXor : public InstructionArithmetic {
         InstructionXor (const Variable * dst, const Operand * lhs, const Operand * rhs)
             : InstructionArithmetic (XOR, "bvxor", dst, lhs, rhs) {}
 
-        InstructionXor * copy () { return new InstructionXor(dst, lhs, rhs); }
+        InstructionXor * copy () const { return new InstructionXor(dst, lhs, rhs); }
 };
 
 class InstructionShl : public InstructionArithmetic {
@@ -394,7 +400,7 @@ class InstructionShl : public InstructionArithmetic {
         InstructionShl (const Variable * dst, const Operand * lhs, const Operand * rhs)
             : InstructionArithmetic (SHL, "bvshl", dst, lhs, rhs) {}
 
-        InstructionShl * copy () { return new InstructionShl(dst, lhs, rhs); }
+        InstructionShl * copy () const { return new InstructionShl(dst, lhs, rhs); }
 };
 
 class InstructionShr : public InstructionArithmetic {
@@ -404,7 +410,7 @@ class InstructionShr : public InstructionArithmetic {
         InstructionShr (const Variable * dst, const Operand * lhs, const Operand * rhs)
             : InstructionArithmetic (SHR, "bvlshr", dst, lhs, rhs) {}
 
-        InstructionShr * copy () { return new InstructionShr(dst, lhs, rhs); }
+        InstructionShr * copy () const { return new InstructionShr(dst, lhs, rhs); }
 };
 
 class InstructionCmp : public Instruction {
@@ -446,7 +452,7 @@ class InstructionCmpEq : public InstructionCmp {
         InstructionCmpEq (const Variable * dst, const Operand * lhs, const Operand * rhs)
             : InstructionCmp (CMPEQ, "=", dst, lhs, rhs) {}
 
-        InstructionCmpEq * copy () { return new InstructionCmpEq(dst, lhs, rhs); }
+        InstructionCmpEq * copy () const { return new InstructionCmpEq(dst, lhs, rhs); }
 };
 
 class InstructionCmpLtu : public InstructionCmp {
@@ -456,7 +462,7 @@ class InstructionCmpLtu : public InstructionCmp {
         InstructionCmpLtu (const Variable * dst, const Operand * lhs, const Operand * rhs)
             : InstructionCmp (CMPLTU, "bvlt", dst, lhs, rhs) {}
 
-        InstructionCmpLtu * copy () { return new InstructionCmpLtu(dst, lhs, rhs); }
+        InstructionCmpLtu * copy () const { return new InstructionCmpLtu(dst, lhs, rhs); }
 };
 
 class InstructionCmpLeu : public InstructionCmp {
@@ -466,7 +472,7 @@ class InstructionCmpLeu : public InstructionCmp {
         InstructionCmpLeu (const Variable * dst, const Operand * lhs, const Operand * rhs)
             : InstructionCmp (CMPLEU, "bvle", dst, lhs, rhs) {}
 
-        InstructionCmpLeu * copy () { return new InstructionCmpLeu(dst, lhs, rhs); }
+        InstructionCmpLeu * copy () const { return new InstructionCmpLeu(dst, lhs, rhs); }
 };
 
 class InstructionCmpLts : public InstructionCmp {
@@ -476,7 +482,7 @@ class InstructionCmpLts : public InstructionCmp {
         InstructionCmpLts (const Variable * dst, const Operand * lhs, const Operand * rhs)
             : InstructionCmp (CMPLTS, "sbvlt", dst, lhs, rhs) {}
 
-        InstructionCmpLts * copy () { return new InstructionCmpLts(dst, lhs, rhs); }
+        InstructionCmpLts * copy () const { return new InstructionCmpLts(dst, lhs, rhs); }
 };
 
 class InstructionCmpLes : public InstructionCmp {
@@ -486,7 +492,7 @@ class InstructionCmpLes : public InstructionCmp {
         InstructionCmpLes (const Variable * dst, const Operand * lhs, const Operand * rhs)
             : InstructionCmp (CMPLES, "sbvle", dst, lhs, rhs) {}
 
-        InstructionCmpLes * copy () { return new InstructionCmpLes(dst, lhs, rhs); }
+        InstructionCmpLes * copy () const { return new InstructionCmpLes(dst, lhs, rhs); }
 };
 
 #endif

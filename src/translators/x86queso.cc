@@ -10,10 +10,10 @@
 #define DEBUG_x86TRANSLATE
 
 
-Instruction * QuesoX86 :: translate (const uint8_t * data,
-                                     size_t size,
-                                     uint64_t pc,
-                                     bool setpc) {
+InstructionX86 * QuesoX86 :: translate (const uint8_t * data,
+                                        size_t size,
+                                        uint64_t pc,
+                                        bool setpc) {
     if (ix86 != NULL)
         delete ix86;
 
@@ -89,12 +89,12 @@ Instruction * QuesoX86 :: translate (const uint8_t * data,
 }
 
 
-Instruction * QuesoX86 :: translate (const uint8_t * data, size_t size) {
+InstructionX86 * QuesoX86 :: translate (const uint8_t * data, size_t size) {
     return translate(data, size, 0, false);
 }
 
 
-Instruction * QuesoX86 :: translate (const uint8_t * data, size_t size, uint64_t pc) {
+InstructionX86 * QuesoX86 :: translate (const uint8_t * data, size_t size, uint64_t pc) {
     return translate(data, size, pc, true);
 }
 

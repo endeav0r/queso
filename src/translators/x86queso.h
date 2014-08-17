@@ -43,7 +43,7 @@ class InstructionX86 : public Instruction {
 
         void pdi (Instruction * ins) { push_depth_instruction(ins); }
 
-        InstructionX86 * copy () {
+        InstructionX86 * copy () const {
             InstructionX86 * newIns;
             if (g_pc_set())
                 newIns = new InstructionX86(text, bytes, size, g_pc());
@@ -118,15 +118,15 @@ class QuesoX86 : public Translator {
         bool test ();
         bool Xor ();
 
-        Instruction * translate (const uint8_t * data,
-                                 size_t size,
-                                 uint64_t pc,
-                                 bool set_pc);
+        InstructionX86 * translate (const uint8_t * data,
+                                    size_t size,
+                                    uint64_t pc,
+                                    bool set_pc);
 
     public :
         QuesoX86 () {ix86 = NULL;}
-        Instruction * translate (const uint8_t * data, size_t size);
-        Instruction * translate (const uint8_t * data, size_t size, uint64_t pc);
+        InstructionX86 * translate (const uint8_t * data, size_t size);
+        InstructionX86 * translate (const uint8_t * data, size_t size, uint64_t pc);
 };
 
 #endif

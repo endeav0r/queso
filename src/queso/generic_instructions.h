@@ -24,7 +24,7 @@ class InstructionLoadLE16 : public Instruction {
         
         const std::string queso () const;
 
-        InstructionLoadLE16 * copy ();
+        InstructionLoadLE16 * copy () const;
 };
 
 class InstructionLoadLE32 : public Instruction {
@@ -48,7 +48,7 @@ class InstructionLoadLE32 : public Instruction {
 
         const std::string queso () const;
 
-        InstructionLoadLE32 * copy ();
+        InstructionLoadLE32 * copy () const;
 };
 
 class InstructionStoreLE16 : public Instruction {
@@ -70,7 +70,7 @@ class InstructionStoreLE16 : public Instruction {
 
         const std::string queso () const;
 
-        InstructionStoreLE16 * copy ();
+        InstructionStoreLE16 * copy () const;
 };
 
 class InstructionStoreLE32 : public Instruction {
@@ -92,7 +92,7 @@ class InstructionStoreLE32 : public Instruction {
 
         const std::string queso () const;
 
-        InstructionStoreLE32 * copy ();
+        InstructionStoreLE32 * copy () const;
 };
 
 #endif

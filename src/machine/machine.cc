@@ -8,17 +8,31 @@
 
 
 Machine :: Machine () {
-    memReadHook = NULL;
-    memWriteHook = NULL;
-    varReadHook = NULL;
-    varWriteHook = NULL;
+    pre_memReadHook = NULL;
+    post_memReadHook = NULL;
+    pre_memWriteHook = NULL;
+    post_memWriteHook = NULL;
+    pre_varReadHook = NULL;
+    post_varReadHook = NULL;
+    pre_varWriteHook = NULL;
+    post_varWriteHook = NULL;
+    pre_instructionHook = NULL;
+    post_instructionHook = NULL;
+}
+
+
+Machine Machine :: fork () {
+    Machine machine = *this;
+    return machine;
 }
 
 
 void Machine :: s_variable_internal (const MachineVariable & machineVariable) {
+    if (pre_varWriteHook != NULL)
+        pre_varWriteHook(this, machineVariable, pre_varWriteHook_data);
     this->variables[machineVariable.g_name()] = machineVariable;
-    if (varWriteHook != NULL)
-        varWriteHook(this, machineVariable);
+    if (post_varWriteHook != NULL)
+        post_varWriteHook(this, machineVariable, post_varWriteHook_data);
 }
 
 
@@ -35,15 +49,17 @@ void Machine :: s_memory (uint64_t address, uint8_t * bytes, size_t size) {
         std::cout << "DEBUG_ENGINE_MEMORY s_memory " 
                   << std::hex << (address + i) << " = " << tmp << std::endl;
         #endif
-        this->memory[address + i] = bytes[i];
+        this->memoryModel.s_byte(address + i, bytes[i]);
     }
 }
 
 
 void Machine :: s_memory (uint64_t address, uint8_t value) {
-    this->memory[address] = value;
-    if (memWriteHook != NULL)
-        memWriteHook(this, address, value);
+    if (pre_memWriteHook != NULL)
+        pre_memWriteHook(this, address, value, pre_memWriteHook_data);
+    this->memoryModel.s_byte(address, value);
+    if (post_memWriteHook != NULL)
+        post_memWriteHook(this, address, value, post_memWriteHook_data);
 }
 
 
@@ -52,9 +68,12 @@ uint8_t Machine :: g_memory (uint64_t address) {
     std::cout << "DEBUG_ENGINE_MEMORY g_memory " << std::hex << address << std::endl;
     #endif
 
-    if (memReadHook != NULL)
-        memReadHook(this, address, memory[address]);
-    return memory[address];
+    if (pre_memReadHook != NULL)
+        pre_memReadHook(this, address, this->memoryModel.g_byte(address), pre_memReadHook_data);
+    uint8_t value = this->memoryModel.g_byte(address);
+    if (post_memReadHook != NULL)
+        post_memReadHook(this, address, this->memoryModel.g_byte(address), post_memReadHook_data);
+    return value;
 }
 
 
@@ -62,7 +81,7 @@ MachineBuffer Machine :: g_memory (uint64_t address, size_t size) {
     uint8_t * buffer = new uint8_t [size];
 
     for (size_t i = 0; i < size; i++) {
-        buffer[i] = memory[address + i];
+        buffer[i] = this->memoryModel.g_byte(address + i);
     }
 
     return MachineBuffer(buffer, size, true);
@@ -96,9 +115,16 @@ uint64_t Machine :: operandValue (const Operand * operand) {
     if (operand->g_type() == CONSTANT)
         return dynamic_cast<const Constant *>(operand)->g_value();
     else if (operand->g_type() == VARIABLE) {
-        if (varReadHook != NULL)
-            varReadHook(this, variables[dynamic_cast<const Variable *>(operand)->g_name()]);
-        return variables[dynamic_cast<const Variable *>(operand)->g_name()].g_value();
+        if (pre_varReadHook != NULL)
+            pre_varReadHook(this,
+                            dynamic_cast<const Variable *>(operand),
+                            pre_varReadHook_data);
+        uint64_t value = variables[dynamic_cast<const Variable *>(operand)->g_name()].g_value();
+        if (post_varReadHook != NULL)
+            post_varReadHook(this,
+                             variables[dynamic_cast<const Variable *>(operand)->g_name()],
+                             post_varReadHook_data);
+        return value;
     }
 
     throw INVALID_OPERAND_TYPE;
@@ -107,6 +133,13 @@ uint64_t Machine :: operandValue (const Operand * operand) {
 
 
 void Machine :: concreteExecution (const Instruction * instruction) {
+    this->stop_flag = false;
+
+    if (pre_instructionHook != NULL)
+        pre_instructionHook(this, instruction, pre_instructionHook_data);
+
+    if (stop_flag)
+        return;
 
     // ASSIGN
     if (const InstructionAssign * ins = dynamic_cast<const InstructionAssign *>(instruction)) {
@@ -301,6 +334,9 @@ void Machine :: concreteExecution (const Instruction * instruction) {
             result = 1;
         s_variable_internal(MachineVariable(ins->g_dst()->g_name(), result, 1));
     }
+
+    if (post_instructionHook != NULL)
+        post_instructionHook(this, instruction, post_instructionHook_data);
 
     std::list <Instruction *> :: const_iterator it;
     for (it = instruction->g_depth_instructions().begin();

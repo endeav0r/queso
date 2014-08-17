@@ -142,6 +142,63 @@ void Instruction :: push_depth_instruction (Instruction * instruction) {
     depth_instructions.push_back(instruction);
 }
 
+
+void Instruction :: var_dominators (std::list <std::string> & dominator_variables,
+                                    std::list <const Instruction *> & dominator_instructions) const {
+
+    // if this is a queso variable
+    if (opcode != USER) {
+        // get name of operand written by this instruction
+        std::string var_name = "";
+        if (const Variable * variable = dynamic_cast<const Variable *>(operand_written()))
+            var_name = variable->g_name();
+        else if (const Array * array = dynamic_cast<const Array *>(operand_written()))
+            var_name = array->g_name();
+        
+        // if variable being written is a dominator
+        std::list <std::string> :: iterator it;
+        for (it = dominator_variables.begin(); it != dominator_variables.end(); it++) {
+            if (*it == var_name) {
+                // add this instruction to dominator_instructions
+                dominator_instructions.push_back(this);
+                // add all source variables to dominator variables
+                const std::list <Operand *> op_read = operands_read();
+                std::list <Operand *> :: const_iterator rit;
+                for (rit = op_read.begin(); rit != op_read.end(); rit++) {
+                    if (Variable * variable = dynamic_cast<Variable *>(*rit))
+                        dominator_variables.push_back(variable->g_name());
+                    else if (Array * array = dynamic_cast<Array *>(*rit))
+                        dominator_variables.push_back(array->g_name());
+                }
+            }
+        }
+    }
+    else {
+        
+        std::list <Instruction *> :: const_reverse_iterator it;
+        
+        for (it = depth_instructions.rbegin(); it != depth_instructions.rend(); it++) {
+            (*it)->var_dominators(dominator_variables, dominator_instructions);
+        }
+        
+    }
+}
+
+
+const std::list <const Instruction *> Instruction :: var_dominators (std::string name) const {
+    std::list <const Instruction *> dominator_instructions;
+    std::list <std::string>   dominator_variables;
+
+    dominator_variables.push_back(name);
+
+    var_dominators(dominator_variables, dominator_instructions);
+
+    dominator_instructions.reverse();
+
+    return dominator_instructions;
+}
+
+
 /*********************************************
 * Instruction : InstructionAssign
 **********************************************/
@@ -191,7 +248,7 @@ const std::string InstructionAssign :: queso () const {
 }
 
 
-InstructionAssign * InstructionAssign :: copy () {
+InstructionAssign * InstructionAssign :: copy () const {
     return new InstructionAssign(dst, src);
 }
 
@@ -262,7 +319,7 @@ const std::string InstructionStore :: queso () const {
     return ss.str();
 }
 
-InstructionStore * InstructionStore :: copy () {
+InstructionStore * InstructionStore :: copy () const {
     return new InstructionStore(dstmem, srcmem, address, value);
 }
 
@@ -315,7 +372,7 @@ const std::string InstructionLoad :: queso () const {
     return ss.str();
 }
 
-InstructionLoad * InstructionLoad :: copy () {
+InstructionLoad * InstructionLoad :: copy () const {
     return new InstructionLoad(dst, mem, address);
 }
 
@@ -374,7 +431,7 @@ const std::string InstructionIte :: queso () const {
     return ss.str();
 }
 
-InstructionIte * InstructionIte :: copy () {
+InstructionIte * InstructionIte :: copy () const {
     return new InstructionIte(dst, condition, t, e);
 }
 
@@ -429,7 +486,7 @@ const std::string InstructionSignExtend :: queso () const {
     return ss.str();
 }
 
-InstructionSignExtend * InstructionSignExtend :: copy () {
+InstructionSignExtend * InstructionSignExtend :: copy () const {
     return new InstructionSignExtend(dst, src);
 }
 

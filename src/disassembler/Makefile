@@ -1,4 +1,4 @@
-OBJS = queso.o generic_instructions.o
+OBJS = x86Disassembler.o
 
 CXXFLAGS = -g -Werror -Wall -std=c++11 -O2
 INCLUDE = -I../

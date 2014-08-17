@@ -36,7 +36,9 @@ class MemoryModel {
             memory[address] = byte;
         }
 
-        MemoryBuffer g_bytes (uint64_t address, size_t size);
+        MemoryBuffer g_bytes (uint64_t address, size_t size) const;
+
+        uint8_t g_byte (uint64_t address) { return memory[address]; }
 
 };
 
