@@ -29,9 +29,10 @@ Elf32 * Elf32 :: load (const std::string filename) {
     }
 
     unsigned char tmp[32];
-    fread(tmp, 1, 32, fh);
+    size_t tmpBytesRead = fread(tmp, 1, 32, fh);
 
-    if (    (tmp[EI_MAG0] != ELFMAG0)
+    if (    (tmpBytesRead != 32)
+         || (tmp[EI_MAG0] != ELFMAG0)
          || (tmp[EI_MAG1] != ELFMAG1)
          || (tmp[EI_MAG2] != ELFMAG2)
          || (tmp[EI_MAG3] != ELFMAG3)
