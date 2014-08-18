@@ -17,8 +17,6 @@ static const struct luaL_Reg luint64_lib_m [] = {
     {NULL, NULL}
 };
 
-
-
 LUALIB_API int luaopen_luint64 (lua_State * L)
 {
     luaL_newmetatable(L, "luint64.uint64_t");
@@ -32,7 +30,6 @@ LUALIB_API int luaopen_luint64 (lua_State * L)
     
     return 1;
 }
-
 
 int luint32 (lua_State * L)
 {

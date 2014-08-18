@@ -40,6 +40,8 @@ class MemoryModel {
 
         uint8_t g_byte (uint64_t address) { return memory[address]; }
 
+        MemoryModel * copy ();
+
 };
 
 #endif

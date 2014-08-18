@@ -12,6 +12,8 @@ extern "C" {
 #include "machine/machine.h"
 #include "queso/queso.h"
 
+extern "C" {
+
 LUALIB_API int luaopen_lqueso (lua_State * L);
 
 int lqueso_x86translate   (lua_State * L);
@@ -53,10 +55,11 @@ int lqueso_memoryModel_s_byte (lua_State * L);
 int lqueso_memoryModel_g_byte (lua_State * L);
 
 Elf32 * lqueso_elf32_check (lua_State * L, int position);
-int lqueso_elf32_push		 (lua_State * L, Elf32 * elf32);
 int lqueso_elf32_new         (lua_State * L);
-int lqueso_elf32_gc			 (lua_State * L);
-int lqueso_elf32_entry		 (lua_State * L);
+int lqueso_elf32_gc          (lua_State * L);
+int lqueso_elf32_entry       (lua_State * L);
 int lqueso_elf32_memoryModel (lua_State * L);
+
+}
 
 #endif

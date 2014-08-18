@@ -52,6 +52,8 @@ Elf32 * Elf32 :: load (const std::string filename) {
         if (bytesRead == EOF)
             break;
         totalRead += bytesRead;
+        if (totalRead == size)
+            break;
     }
 
     fclose(fh);

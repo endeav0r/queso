@@ -2,6 +2,7 @@
 
 #include "machine/machine.h"
 
+#include <iostream>
 #include <queue>
 #include <set>
 #include <unordered_set>
@@ -16,8 +17,14 @@
 std::list <uint64_t> X86Disassembler :: evalEip (const InstructionX86 * ix86) {
     const std::list <const Instruction *> dominators = ix86->var_dominators("eip");
 
+    std::cout << dominators.size() << " dominator instructions" << std::endl;
+
     std::list <Machine> machines;
-    machines.push_back(Machine());
+
+    Machine firstMachine;
+    firstMachine.s_variable(MachineVariable("eip", ix86->g_pc(), 32));
+
+    machines.push_back(firstMachine);
 
     std::list <const Instruction *> :: const_iterator it;
     for (it = dominators.begin(); it != dominators.end(); it++) {
@@ -33,6 +40,7 @@ std::list <uint64_t> X86Disassembler :: evalEip (const InstructionX86 * ix86) {
         std::list <Operand *> :: const_iterator it;
         for (it = read_operands.begin(); it != read_operands.end(); it++) {
             // a read operand is a variable
+
             if (const Variable * variable = dynamic_cast<const Variable *>(*it)) {
 
                 std::string variableName = variable->g_name();
@@ -104,14 +112,18 @@ QuesoGraph X86Disassembler :: disassemble (uint64_t entry,
                                                    memoryBuffer.g_size(),
                                                    address);
 
+        std::cout << std::hex << address << " " << ix86->queso() << std::endl;
+
         quesoGraph.absorbInstruction(ix86);
 
         instructionMap[address] = ix86;
 
         std::list <uint64_t> successors = evalEip(ix86);
+
         std::list <uint64_t> :: iterator it;
         for (it = successors.begin(); it != successors.end(); it++) {
             uint64_t successor = *it;
+            std::cout << "found successor " << std::hex << successor << std::endl;
             edgeMap[address][successor] = CFT_NORMAL;
             if (queued.count(successor) == 0) {
                 queued.insert(successor);
@@ -120,6 +132,8 @@ QuesoGraph X86Disassembler :: disassemble (uint64_t entry,
         }
     }
 
+
+    std::cout << 8 << std::endl;
     std::map <uint64_t, std::map <uint64_t, ControlFlowType>> :: iterator it;
     for (it = edgeMap.begin(); it != edgeMap.end(); it++) {
         std::map <uint64_t, ControlFlowType> :: iterator iit;

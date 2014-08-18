@@ -9,7 +9,7 @@ extern "C" {
 
 #include <inttypes.h>
 
-LUALIB_API int luaopen_luint64 (lua_State * L);
+int luaopen_luint64 (lua_State * L);
 
 int      luint64_push  (lua_State * L, uint64_t value);
 uint64_t luint64_check (lua_State * L, int position);

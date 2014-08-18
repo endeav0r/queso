@@ -7,6 +7,16 @@
 #include <string>
 
 
+extern "C" {
+
+static const struct luaL_Reg lqueso_lib_f [] = {
+    {"machine", lqueso_machine_new},
+    {"x86translate", lqueso_x86translate},
+    {"x86disassemble", lqueso_x86disassemble},
+    {"elf32", lqueso_elf32_new},
+    {NULL, NULL}
+};
+
 static const struct luaL_Reg lqueso_instruction_m [] = {
     {"__gc", lqueso_instruction_gc},
     {"depth_instructions", lqueso_instruction_depth_instructions},
@@ -54,15 +64,8 @@ static const struct luaL_Reg lqueso_elf32_m [] = {
     {NULL, NULL}
 };
 
-static const struct luaL_Reg lqueso_lib_f [] = {
-    {"machine", lqueso_machine_new},
-    {"x86translate", lqueso_x86translate},
-    {"x86disassemble", lqueso_x86disassemble},
-    {"elf32", lqueso_elf32_new},
-    {NULL, NULL}
-};
 
-LUALIB_API int luaopen_lqueso (lua_State * L) {
+extern "C" __declspec(dllexport) int luaopen_lqueso (lua_State * L) {
     luaL_register(L, "lqueso", lqueso_lib_f);
 
     luaL_newmetatable(L, "lqueso.instruction");
@@ -103,7 +106,6 @@ LUALIB_API int luaopen_lqueso (lua_State * L) {
 
     return 4 + luaopen_luint64(L);
 }
-
 
 int lqueso_x86translate (lua_State * L) {
     size_t size;
@@ -452,7 +454,7 @@ int lqueso_memoryModel_push (lua_State * L, MemoryModel * memoryModel) {
     luaL_getmetatable(L, "lqueso.memoryModel");
     lua_setmetatable(L, -2);
 
-    **mModel = *memoryModel;
+    *mModel = memoryModel->copy();
 
     return 1;
 }
@@ -507,17 +509,6 @@ int lqueso_memoryModel_g_byte (lua_State * L) {
 **********************************************************/
 
 
-int lqueso_elf32_push (lua_State * L, Elf32 * elf32) {
-    Elf32 ** eelf32 = (Elf32 **) lua_newuserdata(L, sizeof(Elf32 **));
-    luaL_getmetatable(L, "lqueso.elf32");
-    lua_setmetatable(L, -2);
-
-    **eelf32 = *elf32;
-
-    return 1;
-}
-
-
 int lqueso_elf32_new (lua_State * L) {
     const char * filename = luaL_checkstring(L, 1);
     lua_pop(L, 1);
@@ -526,7 +517,13 @@ int lqueso_elf32_new (lua_State * L) {
     if (elf32 == NULL)
         luaL_error(L, "invalid elf32 file");
 
-    return lqueso_elf32_push(L, elf32);
+    Elf32 ** eelf32 = (Elf32 **) lua_newuserdata(L, sizeof(Elf32 **));
+    luaL_getmetatable(L, "lqueso.elf32");
+    lua_setmetatable(L, -2);
+
+    *eelf32 = elf32;
+
+    return 1;
 }
 
 
@@ -567,4 +564,7 @@ int lqueso_elf32_memoryModel (lua_State * L) {
     lqueso_memoryModel_push(L, &memoryModel);
 
     return 1;
+}
+
+
 }
