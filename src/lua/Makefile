@@ -7,7 +7,7 @@ all : $(OBJS)
 	
 
 %.o : %.cc %.h
-	$(CXX) -fPIC -c -o $@ $< $(CXXFLAGS) $(INCLUDE)
+	$(CXX) -fpic -c -o $@ $< $(CXXFLAGS) $(INCLUDE)
 
 clean :
 	rm -f *.o

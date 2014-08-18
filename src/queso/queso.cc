@@ -1,5 +1,6 @@
 #include "queso.h"
 
+#include <cstdio>
 #include <sstream>
 
 const char * QuesoOpcodeStrings [] = {

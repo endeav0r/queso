@@ -1,5 +1,6 @@
 #include "quesoGraph.h"
 
+#include <cstdio>
 #include <queue>
 #include <sstream>
 #include <unordered_set>

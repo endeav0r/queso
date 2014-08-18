@@ -58,6 +58,7 @@ static const struct luaL_Reg lqueso_lib_f [] = {
     {"machine", lqueso_machine_new},
     {"x86translate", lqueso_x86translate},
     {"x86disassemble", lqueso_x86disassemble},
+    {"elf32", lqueso_elf32_new},
     {NULL, NULL}
 };
 
@@ -514,6 +515,18 @@ int lqueso_elf32_push (lua_State * L, Elf32 * elf32) {
     **eelf32 = *elf32;
 
     return 1;
+}
+
+
+int lqueso_elf32_new (lua_State * L) {
+    const char * filename = luaL_checkstring(L, 1);
+    lua_pop(L, 1);
+
+    Elf32 * elf32 = Elf32::load(filename);
+    if (elf32 == NULL)
+        luaL_error(L, "invalid elf32 file");
+
+    return lqueso_elf32_push(L, elf32);
 }
 
 

@@ -65,6 +65,13 @@ uint64_t Elf32 :: entry () {
 }
 
 
+std::string Elf32 :: label (uint64_t address) {
+    char tmp[32];
+    snprintf(tmp, 32, "%08x", (unsigned int) address);
+    return tmp;
+}
+
+
 MemoryModel Elf32 :: memoryModel () {
     MemoryModel memoryModel;
 

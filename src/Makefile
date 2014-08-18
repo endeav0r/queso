@@ -1,8 +1,8 @@
 OBJS = queso/*.o translators/*.o lua/*.o machine/*.o \
-       disassembler/*.o graph/*.o containers/*.o
+       disassembler/*.o graph/*.o containers/*.o loader/*.o
 
 CXXFLAGS = -g -Werror -Wall -std=c++11 -O2
-LIBS = -ludis86 -llua5.1
+LIBS = -ludis86 -llua -L/usr/local/lib
 
 all :
 	make -C containers
@@ -16,7 +16,7 @@ all :
 	$(CXX) -shared -fPIC -o lqueso.so $(OBJS) $(LIBS) $(CXXFLAGS) -I./
 
 %.o : %.cc %.h
-	$(CXX) -fPIC -c -o $@ $< $(CXXFLAGS)
+	$(CXX) -fpic -c -o $@ $< $(CXXFLAGS)
 
 clean :
 	rm -f *.o
