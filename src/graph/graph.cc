@@ -61,6 +61,7 @@ const std::list <GraphEdge *> GraphVertex :: g_predecessors () const {
 **********************************************************/
 
 Graph :: ~Graph () {
+    printf("graph destructor\n"); fflush(stdout);
     std::map<const GraphVertex *, GraphVertex *> :: iterator it;
     for (it = vertices.begin(); it != vertices.end(); it++) {
         GraphVertex * graphVertex = it->second;

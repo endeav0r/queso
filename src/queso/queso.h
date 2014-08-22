@@ -129,8 +129,9 @@ class Instruction : public GraphVertex {
 
         virtual ~Instruction () {
             std::list <Instruction *> ::iterator it;
-            for (it = depth_instructions.begin(); it != depth_instructions.end(); it++)
+            for (it = depth_instructions.begin(); it != depth_instructions.end(); it++) {
                 delete *it;
+            }
         };
 
         bool        g_pc_set () const { return pc_set; }

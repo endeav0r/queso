@@ -102,7 +102,6 @@ std::list <LoaderSymbol> Elf32 :: symbols () {
     std::list <LoaderSymbol> symbols;
 
     for (unsigned int shdr_i = 0; shdr_i < _ehdr()->e_shnum; shdr_i++) {
-        printf("shdr_i=%d\n", shdr_i);fflush(stdout);
         const Elf32_Shdr * shdr = _shdr(shdr_i);
         if (shdr == NULL)
             break;
@@ -112,8 +111,6 @@ std::list <LoaderSymbol> Elf32 :: symbols () {
             continue;
 
         const Elf32_Shdr * link = _shdr(shdr->sh_link);
-
-        printf("symbols\n");fflush(stdout);
 
         for (unsigned int sym_i = 0; sym_i < shdr->sh_size / shdr->sh_entsize; sym_i++) {
             const Elf32_Sym * sym = (const Elf32_Sym *) _shdr_ent(shdr, shdr_i);

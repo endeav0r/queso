@@ -55,9 +55,7 @@ const std::string InstructionLoadLE16 :: queso () const {
 
 
 InstructionLoadLE16 * InstructionLoadLE16 :: copy () const { 
-    InstructionLoadLE16 * newIns = new InstructionLoadLE16(dst, memory, address);
-    newIns->copy_depth_instructions(this);
-    return newIns;
+    return new InstructionLoadLE16(dst, memory, address);
 }
 
 
@@ -81,11 +79,13 @@ InstructionLoadLE32 :: InstructionLoadLE32 (const Variable * dst,
     init();
 }
 
+
 InstructionLoadLE32 :: ~InstructionLoadLE32 () {
     delete dst;
     delete memory;
     delete address;
 }
+
 
 void InstructionLoadLE32 :: init () {
     Variable load8_0(8, "load8_0");
@@ -128,9 +128,7 @@ const std::string InstructionLoadLE32 :: queso () const {
 
 
 InstructionLoadLE32 * InstructionLoadLE32 :: copy () const {
-    InstructionLoadLE32 * newIns = new InstructionLoadLE32(dst, memory, address);
-    newIns->copy_depth_instructions(this);
-    return newIns;
+    return new InstructionLoadLE32(dst, memory, address);
 }
 
 
@@ -188,9 +186,7 @@ const std::string InstructionStoreLE16 :: queso () const {
 
 
 InstructionStoreLE16 * InstructionStoreLE16 :: copy () const {
-    InstructionStoreLE16 * newIns = new InstructionStoreLE16(memory, address, value);
-    newIns->copy_depth_instructions(this);
-    return newIns;
+    return new InstructionStoreLE16(memory, address, value);
 }
 
 
@@ -258,7 +254,5 @@ const std::string InstructionStoreLE32 :: queso () const {
 
 
 InstructionStoreLE32 * InstructionStoreLE32 :: copy () const {
-    InstructionStoreLE32 * newIns = new InstructionStoreLE32(memory, address, value);
-    newIns->copy_depth_instructions(this);
-    return newIns;
+    return  new InstructionStoreLE32(memory, address, value);
 }

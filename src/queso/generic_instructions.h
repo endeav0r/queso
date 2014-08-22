@@ -20,7 +20,7 @@ class InstructionLoadLE16 : public Instruction {
                              const Array * memory,
                              const Operand * address);
         
-        ~InstructionLoadLE16 ();
+        virtual ~InstructionLoadLE16 ();
         
         const std::string queso () const;
 
@@ -43,8 +43,8 @@ class InstructionLoadLE32 : public Instruction {
         InstructionLoadLE32 (const Variable * dst,
                              const Array * memory,
                              const Operand * address);
-        
-        ~InstructionLoadLE32 ();
+
+        virtual ~InstructionLoadLE32 ();
 
         const std::string queso () const;
 
@@ -66,7 +66,7 @@ class InstructionStoreLE16 : public Instruction {
         InstructionStoreLE16 (const Array * memory,
                               const Operand * address,
                               const Operand * value);
-        ~InstructionStoreLE16 ();
+        virtual ~InstructionStoreLE16 ();
 
         const std::string queso () const;
 
@@ -88,7 +88,7 @@ class InstructionStoreLE32 : public Instruction {
         InstructionStoreLE32 (const Array * memory,
                               const Operand * address,
                               const Operand * value);
-        ~InstructionStoreLE32 ();
+        virtual ~InstructionStoreLE32 ();
 
         const std::string queso () const;
 

@@ -65,7 +65,7 @@ static const struct luaL_Reg lqueso_elf32_m [] = {
 };
 
 
-extern "C" __declspec(dllexport) int luaopen_lqueso (lua_State * L) {
+LUALIB_API int luaopen_lqueso (lua_State * L) {
     luaL_register(L, "lqueso", lqueso_lib_f);
 
     luaL_newmetatable(L, "lqueso.instruction");
@@ -621,7 +621,6 @@ int lqueso_elf32_symbols (lua_State * L) {
 
     lua_newtable(L);
 
-    /*
     std::list <LoaderSymbol> symbols = elf32->symbols();
     std::list <LoaderSymbol> :: iterator it;
     printf("got %d symbols\n", (int) symbols.size());fflush(stdout);
@@ -652,6 +651,5 @@ int lqueso_elf32_symbols (lua_State * L) {
 
     printf("done with symbols\n");fflush(stdout);
 
-    */
     return 1;
 }

@@ -17,7 +17,7 @@ class Elf32 : public Loader {
 
     public :
         ~Elf32 () {
-            delete data;
+            delete[] data;
         }
         static Elf32 * load (const std::string filename);
         uint64_t    entry ();

@@ -32,7 +32,7 @@ class InstructionX86 : public Instruction {
                 this->size = size;
             }
 
-        ~InstructionX86 () {
+        virtual ~InstructionX86 () {
             delete[] bytes;
         }
 
