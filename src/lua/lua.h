@@ -2,9 +2,15 @@
 #define lua_HEADER
 
 extern "C" {
+#ifdef CYGWIN
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
+#else
+#include <lua5.1/lua.h>
+#include <lua5.1/lualib.h>
+#include <lua5.1/lauxlib.h>
+#endif
 }
 
 #include "graph/quesoGraph.h"
