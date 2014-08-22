@@ -21,6 +21,7 @@ int lqueso_x86disassemble (lua_State * L);
 
 Instruction * lqueso_instruction_check (lua_State * L, int position);
 int lqueso_instruction_push               (lua_State * L, Instruction * instruction);
+int lqueso_instruction_absorb             (lua_State * L, Instruction * instruction);
 int lqueso_instruction_gc                 (lua_State * L);
 int lqueso_instruction_queso              (lua_State * L);
 int lqueso_instruction_depth_instructions (lua_State * L);
@@ -44,7 +45,7 @@ int lqueso_machine_g_memoryModel     (lua_State * L);
 int lqueso_machine_concreteExecution (lua_State * L);
 
 QuesoGraph * lqueso_quesoGraph_check (lua_State * L, int position);
-int lqueso_quesoGraph_push     (lua_State * L, QuesoGraph * quesoGraph);
+int lqueso_quesoGraph_absorb   (lua_State * L, QuesoGraph * quesoGraph);
 int lqueso_quesoGraph_gc       (lua_State * L);
 int lqueso_quesoGraph_dotGraph (lua_State * L);
 
@@ -59,6 +60,7 @@ int lqueso_elf32_new         (lua_State * L);
 int lqueso_elf32_gc          (lua_State * L);
 int lqueso_elf32_entry       (lua_State * L);
 int lqueso_elf32_memoryModel (lua_State * L);
+int lqueso_elf32_symbols     (lua_State * L);
 
 }
 

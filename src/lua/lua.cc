@@ -6,8 +6,7 @@
 
 #include <string>
 
-
-extern "C" {
+#define LUA_DEBUG
 
 static const struct luaL_Reg lqueso_lib_f [] = {
     {"machine", lqueso_machine_new},
@@ -61,6 +60,7 @@ static const struct luaL_Reg lqueso_elf32_m [] = {
     {"__gc", lqueso_elf32_gc},
     {"entry", lqueso_elf32_entry},
     {"memoryModel", lqueso_elf32_memoryModel},
+    {"symbols", lqueso_elf32_symbols},
     {NULL, NULL}
 };
 
@@ -133,9 +133,9 @@ int lqueso_x86disassemble (lua_State * L) {
 
     lua_pop(L, 2);
 
-    QuesoGraph quesoGraph = X86Disassembler :: disassemble(entry, memoryModel);
+    QuesoGraph * quesoGraph = X86Disassembler :: disassemble(entry, memoryModel);
 
-    lqueso_quesoGraph_push(L, &quesoGraph);
+    lqueso_quesoGraph_absorb(L, quesoGraph);
 
     return 1;
 }
@@ -157,6 +157,17 @@ int lqueso_instruction_push (lua_State * L, Instruction * instruction) {
 }
 
 
+int lqueso_instruction_absorb (lua_State * L, Instruction * instruction) {
+    Instruction ** luaIns = (Instruction **) lua_newuserdata(L, sizeof(Instruction **));
+    luaL_getmetatable(L, "lqueso.instruction");
+    lua_setmetatable(L, -2);
+
+    *luaIns = instruction;
+
+    return 1;
+}
+
+
 Instruction * lqueso_instruction_check (lua_State * L, int position) {
     Instruction * instruction;
     void ** userdata = (void **) luaL_checkudata(L, position, "lqueso.instruction");
@@ -167,10 +178,18 @@ Instruction * lqueso_instruction_check (lua_State * L, int position) {
 
 
 int lqueso_instruction_gc (lua_State * L) {
+    #ifdef LUA_DEBUG
+    printf("lqueso_instruction_gc\n");fflush(stdout);
+    #endif
+
     Instruction * instruction = lqueso_instruction_check(L, -1);
     lua_pop(L, 1);
 
     delete instruction;
+
+    #ifdef LUA_DEBUG
+    printf("lqueso_instruction_gc done\n");fflush(stdout);
+    #endif
 
     return 0;
 }
@@ -240,11 +259,18 @@ MachineVariable * lqueso_machineVariable_check (lua_State * L, int position) {
 
 
 int lqueso_machineVariable_gc (lua_State * L) {
+    #ifdef LUA_DEBUG
+    printf("lqueso_machineVariable_gc\n");fflush(stdout);
+    #endif
+
     MachineVariable * machineVariable = lqueso_machineVariable_check(L, -1);
     lua_pop(L, 1);
 
     delete machineVariable;
 
+    #ifdef LUA_DEBUG
+    printf("lqueso_machineVariable_gc done\n");fflush(stdout);
+    #endif
     return 0;
 }
 
@@ -403,12 +429,12 @@ int lqueso_machine_concreteExecution (lua_State * L) {
 **********************************************************/
 
 
-int lqueso_quesoGraph_push (lua_State * L, QuesoGraph * quesoGraph) {
+int lqueso_quesoGraph_absorb (lua_State * L, QuesoGraph * quesoGraph) {
     QuesoGraph ** qGraph = (QuesoGraph **) lua_newuserdata(L, sizeof(QuesoGraph **));
     luaL_getmetatable(L, "lqueso.quesoGraph");
     lua_setmetatable(L, -2);
 
-    **qGraph = *quesoGraph;
+    *qGraph = quesoGraph;
 
     return 1;
 }
@@ -424,10 +450,18 @@ QuesoGraph * lqueso_quesoGraph_check (lua_State * L, int position) {
 
 
 int lqueso_quesoGraph_gc (lua_State * L) {
+    #ifdef LUA_DEBUG
+    printf("lqueso_quesoGraph_gc\n");fflush(stdout);
+    #endif
+
     QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, -1);
     lua_pop(L, 1);
 
     delete quesoGraph;
+
+    #ifdef LUA_DEBUG
+    printf("lqueso_quesoGraph_gc\n");fflush(stdout);
+    #endif
 
     return 0;
 }
@@ -470,11 +504,18 @@ MemoryModel * lqueso_memoryModel_check (lua_State * L, int position) {
 
 
 int lqueso_memoryModel_gc (lua_State * L) {
+    #ifdef LUA_DEBUG
+    printf("lqueso_memoryModel_gc\n");fflush(stdout);
+    #endif
+
     MemoryModel * memoryModel = lqueso_memoryModel_check(L, -1);
     lua_pop(L, 1);
 
     delete memoryModel;
 
+    #ifdef LUA_DEBUG
+    printf("lqueso_memoryModel_gc done\n");fflush(stdout);
+    #endif
     return 0;
 }
 
@@ -537,11 +578,18 @@ Elf32 * lqueso_elf32_check (lua_State * L, int position) {
 
 
 int lqueso_elf32_gc (lua_State * L) {
+    #ifdef LUA_DEBUG
+    printf("lqueso_elf32_gc\n");fflush(stdout);
+    #endif
+
     Elf32 * elf32 = lqueso_elf32_check(L, -1);
     lua_pop(L, 1);
 
     delete elf32;
 
+    #ifdef LUA_DEBUG
+    printf("lqueso_elf32_gc done\n");fflush(stdout);
+    #endif
     return 0;
 }
 
@@ -567,4 +615,43 @@ int lqueso_elf32_memoryModel (lua_State * L) {
 }
 
 
+int lqueso_elf32_symbols (lua_State * L) {
+    Elf32 * elf32 = lqueso_elf32_check(L, -1);
+    lua_pop(L, 1);
+
+    lua_newtable(L);
+
+    /*
+    std::list <LoaderSymbol> symbols = elf32->symbols();
+    std::list <LoaderSymbol> :: iterator it;
+    printf("got %d symbols\n", (int) symbols.size());fflush(stdout);
+    for (it = symbols.begin(); it != symbols.end(); it++) {
+        LoaderSymbol & loaderSymbol = *it;
+
+        lua_pushstring(L, loaderSymbol.g_symbol().c_str());
+        lua_newtable(L);
+
+        lua_pushstring(L, "symbol");
+        lua_pushstring(L, loaderSymbol.g_symbol().c_str());
+        lua_settable(L, -3);
+
+        lua_pushstring(L, "address");
+        luint64_push(L, loaderSymbol.g_address());
+        lua_settable(L, -3);
+
+        switch (loaderSymbol.g_type()) {
+        case LST_FUNCTION :
+            lua_pushstring(L, "type");
+            lua_pushstring(L, "function");
+            lua_settable(L, -3);
+            break;
+        }
+
+        lua_settable(L, -3);
+    }
+
+    printf("done with symbols\n");fflush(stdout);
+
+    */
+    return 1;
 }

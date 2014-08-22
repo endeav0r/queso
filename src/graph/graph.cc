@@ -1,28 +1,24 @@
 #include "graph.h"
 
+#include <cstdio>
+#include <iostream>
+
 /**********************************************************
 * GraphVertex
 **********************************************************/
 
 GraphVertex :: ~GraphVertex () {
-    std::list <GraphEdge *> :: iterator it;
-    for (it = edges.begin(); it != edges.end(); it++) {
-        GraphEdge * graphEdge = *it;
-        it = edges.erase(it);
-
-        delete graphEdge;
+    while (edges.size() > 0) {
+        delete edges.front();
     }
 }
 
 
-void GraphVertex :: deleteEdge (GraphEdge * edge) {
+void GraphVertex :: removeEdge (GraphEdge * edge) {
     std::list <GraphEdge *> :: iterator it;
     for (it = edges.begin(); it != edges.end(); it++) {
         if (*it == edge) {
-            GraphEdge * graphEdge = *it;
             it = edges.erase(it);
-
-            delete graphEdge;
 
             break;
         }
@@ -68,7 +64,6 @@ Graph :: ~Graph () {
     std::map<const GraphVertex *, GraphVertex *> :: iterator it;
     for (it = vertices.begin(); it != vertices.end(); it++) {
         GraphVertex * graphVertex = it->second;
-        it = vertices.erase(it);
         delete graphVertex;
     }
 }

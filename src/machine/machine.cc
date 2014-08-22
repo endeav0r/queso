@@ -3,8 +3,8 @@
 #include <iostream>
 
 #define INVALID_OPERAND_TYPE -100
-#define DEBUG_ENGINE
-//#define DEBUG_ENGINE_MEMORY
+//#define DEBUG_MACHINE
+//#define DEBUG_MACHINE_MEMORY
 
 
 Machine :: Machine () {
@@ -43,10 +43,10 @@ void Machine :: s_variable (const MachineVariable & machineVariable) {
 
 void Machine :: s_memory (uint64_t address, uint8_t * bytes, size_t size) {
     for (size_t i = 0; i < size; i++) {
-        #ifdef DEBUG_ENGINE_MEMORY
+        #ifdef DEBUG_MACHINE_MEMORY
         char tmp[8];
         snprintf(tmp, 8, "%02x", bytes[i]);
-        std::cout << "DEBUG_ENGINE_MEMORY s_memory " 
+        std::cout << "DEBUG_MACHINE_MEMORY s_memory " 
                   << std::hex << (address + i) << " = " << tmp << std::endl;
         #endif
         this->memoryModel.s_byte(address + i, bytes[i]);
@@ -64,8 +64,8 @@ void Machine :: s_memory (uint64_t address, uint8_t value) {
 
 
 uint8_t Machine :: g_memory (uint64_t address) {
-    #ifdef DEBUG_ENGINE_MEMORY
-    std::cout << "DEBUG_ENGINE_MEMORY g_memory " << std::hex << address << std::endl;
+    #ifdef DEBUG_MACHINE_MEMORY
+    std::cout << "DEBUG_MACHINE_MEMORY g_memory " << std::hex << address << std::endl;
     #endif
 
     if (pre_memReadHook != NULL)
@@ -95,8 +95,8 @@ int64_t Machine :: signExtend (uint64_t variable, unsigned int inBits, unsigned 
 
     uint64_t matchMask = (uint64_t) ((uint64_t) 1) << (inBits - (uint64_t) 1);
 
-    #ifdef DEBUG_ENGINE
-    std::cout << "DEBUG_ENGINE signExtend variable=" << std::hex << variable 
+    #ifdef DEBUG_MACHINE
+    std::cout << "DEBUG_MACHINE signExtend variable=" << std::hex << variable 
               << " inBits=" << std::hex << inBits
               << " outBits=" << std::hex << outBits 
               << " outMask=" << std::hex << outMask 
@@ -153,8 +153,8 @@ void Machine :: concreteExecution (const Instruction * instruction) {
 
     // STORE
     else if (const InstructionStore * ins = dynamic_cast<const InstructionStore *>(instruction)) {
-        #ifdef DEBUG_ENGINE
-        std::cout << "DEBUG_ENGINE store [" << std::hex << operandValue(ins->g_address())
+        #ifdef DEBUG_MACHINE
+        std::cout << "DEBUG_MACHINE store [" << std::hex << operandValue(ins->g_address())
                   << "] = " << std::hex << operandValue(ins->g_value()) << std::endl;
         #endif
         s_memory(operandValue(ins->g_address()), operandValue(ins->g_value()));
@@ -162,8 +162,8 @@ void Machine :: concreteExecution (const Instruction * instruction) {
 
     // LOAD
     else if (const InstructionLoad * ins = dynamic_cast<const InstructionLoad *>(instruction)) {
-        #ifdef DEBUG_ENGINE
-        std::cout << "DEBUG_ENGINE load " << ins->g_dst()->queso() << " = "
+        #ifdef DEBUG_MACHINE
+        std::cout << "DEBUG_MACHINE load " << ins->g_dst()->queso() << " = "
                   << "[" << std::hex << operandValue(ins->g_address()) << "]" << std::endl;
         #endif
         MachineVariable dst(ins->g_dst()->g_name(),
@@ -174,8 +174,8 @@ void Machine :: concreteExecution (const Instruction * instruction) {
 
     // ITE
     else if (const InstructionIte * ins = dynamic_cast<const InstructionIte *>(instruction)) {
-        #ifdef DEBUG_ENGINE
-        std::cout << "DEBUG_ENGINE ite " << ins->g_dst()->queso() << " = "
+        #ifdef DEBUG_MACHINE
+        std::cout << "DEBUG_MACHINE ite " << ins->g_dst()->queso() << " = "
                   << ins->g_condition()->queso() << " ("
                   << operandValue(ins->g_condition()) << ") ? "
                   << ins->g_t()->queso() << " (" << std::hex << operandValue(ins->g_t()) << ") : " 
@@ -208,8 +208,8 @@ void Machine :: concreteExecution (const Instruction * instruction) {
 
     // ADD
     else if (const InstructionAdd * ins = dynamic_cast<const InstructionAdd *>(instruction)) {
-        #ifdef DEBUG_ENGINE
-        std::cout << "DEBUG_ENGINE " << ins->g_dst()->g_name() << " = "
+        #ifdef DEBUG_MACHINE
+        std::cout << "DEBUG_MACHINE " << ins->g_dst()->g_name() << " = "
                   << operandValue(ins->g_lhs()) << " + " << operandValue(ins->g_rhs())
                   << " => " << (operandValue(ins->g_lhs()) + operandValue(ins->g_rhs()))
                   << std::endl;

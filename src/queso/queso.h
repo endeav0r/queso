@@ -166,9 +166,9 @@ class InstructionAssign : public Instruction {
         const Variable * g_dst () const { return dst; }
         const Operand  * g_src () const { return src; }
 
-        const Operand * operand_written () { return dst; }
-        const std::list <Operand *> operands_read ();
-        const std::list <Operand *> operands ();
+        const Operand * operand_written () const  { return dst; }
+        const std::list <Operand *> operands_read () const ;
+        const std::list <Operand *> operands () const ;
 
         const std::string smtlib2 () const;
         const std::string queso   () const;
@@ -198,9 +198,9 @@ class InstructionStore : public Instruction {
         const Operand * g_address () const { return address; }
         const Operand * g_value   () const { return value; }
 
-        const Operand * operand_written () { return dstmem; }
-        const std::list <Operand *> operands_read ();
-        const std::list <Operand *> operands ();
+        const Operand * operand_written () const  { return dstmem; }
+        const std::list <Operand *> operands_read () const ;
+        const std::list <Operand *> operands () const ;
 
         const std::string queso   () const;
         const std::string smtlib2 () const;
@@ -221,9 +221,9 @@ class InstructionLoad : public Instruction {
         const Array *    g_mem     () const { return mem; }
         const Operand *  g_address () const { return address; }
 
-        const Operand * operand_written () { return dst; }
-        const std::list <Operand *> operands_read ();
-        const std::list <Operand *> operands ();
+        const Operand * operand_written () const  { return dst; }
+        const std::list <Operand *> operands_read () const ;
+        const std::list <Operand *> operands () const ;
 
         const std::string queso   () const;
         const std::string smtlib2 () const;
@@ -249,9 +249,9 @@ class InstructionIte : public Instruction {
         const Operand  * g_t ()         const { return t; }
         const Operand  * g_e ()         const { return e; }
 
-        const Operand * operand_written () { return dst; }
-        const std::list <Operand *> operands_read ();
-        const std::list <Operand *> operands ();
+        const Operand * operand_written () const  { return dst; }
+        const std::list <Operand *> operands_read () const ;
+        const std::list <Operand *> operands () const ;
 
         const std::string queso   () const;
         const std::string smtlib2 () const;
@@ -271,9 +271,9 @@ class InstructionSignExtend : public Instruction {
         const Variable * g_dst () const { return dst; }
         const Operand  * g_src () const { return src; }
 
-        const Operand * operand_written () { return dst; }
-        const std::list <Operand *> operands_read ();
-        const std::list <Operand *> operands ();
+        const Operand * operand_written () const  { return dst; }
+        const std::list <Operand *> operands_read () const ;
+        const std::list <Operand *> operands () const ;
 
         const std::string queso   () const;
         const std::string smtlib2 () const;
@@ -305,9 +305,9 @@ class InstructionArithmetic : public Instruction {
         const Operand  * g_lhs () const { return lhs; }
         const Operand  * g_rhs () const { return rhs; }
 
-        const Operand * operand_written () { return dst; }
-        const std::list <Operand *> operands_read ();
-        const std::list <Operand *> operands ();
+        const Operand * operand_written () const { return dst; }
+        const std::list <Operand *> operands_read () const ;
+        const std::list <Operand *> operands () const ;
 
         const std::string queso   () const;
         const std::string smtlib2 () const;
@@ -437,9 +437,9 @@ class InstructionCmp : public Instruction {
         const Operand *  g_lhs () const { return lhs; }
         const Operand *  g_rhs () const { return rhs; }
 
-        const Operand * operand_written () { return dst; }
-        const std::list <Operand *> operands_read ();
-        const std::list <Operand *> operands ();
+        const Operand * operand_written () const { return dst; }
+        const std::list <Operand *> operands_read () const ;
+        const std::list <Operand *> operands () const ;
 
         const std::string queso   () const;
         const std::string smtlib2 () const;

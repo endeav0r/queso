@@ -1,6 +1,7 @@
 #ifndef graph_HEADER
 #define graph_HEADER
 
+#include <cstdio>
 #include <cstdlib>
 #include <list>
 #include <map>
@@ -14,7 +15,7 @@ class GraphVertex {
         GraphVertex () {}
         virtual ~GraphVertex ();
 
-        void deleteEdge (GraphEdge * edge);
+        void removeEdge (GraphEdge * edge);
         void insertEdge (GraphEdge * edge);
 
         const std::list <GraphEdge *> & g_edges () const { return edges; }
@@ -34,10 +35,12 @@ class GraphEdge {
 
         virtual ~GraphEdge () {
             if (head != NULL)
-                head->deleteEdge(this);
+                head->removeEdge(this);
             if (tail != NULL)
-                tail->deleteEdge(this);
+                tail->removeEdge(this);
         }
+
+        virtual GraphEdge * copy () const { return new GraphEdge(head, tail); }
 
         const GraphVertex * g_head () const { return head; }
         const GraphVertex * g_tail () const { return tail; }

@@ -17,8 +17,6 @@
 std::list <uint64_t> X86Disassembler :: evalEip (const InstructionX86 * ix86) {
     const std::list <const Instruction *> dominators = ix86->var_dominators("eip");
 
-    std::cout << dominators.size() << " dominator instructions" << std::endl;
-
     std::list <Machine> machines;
 
     Machine firstMachine;
@@ -89,7 +87,7 @@ std::list <uint64_t> X86Disassembler :: evalEip (const InstructionX86 * ix86) {
     return std::list <uint64_t> (eips.begin(), eips.end());
 }
 
-QuesoGraph X86Disassembler :: disassemble (uint64_t entry,
+QuesoGraph * X86Disassembler :: disassemble (uint64_t entry,
                                          const MemoryModel * memoryModel) {
     std::unordered_set <uint64_t> queued;
     std::queue <uint64_t> queue;
@@ -97,7 +95,7 @@ QuesoGraph X86Disassembler :: disassemble (uint64_t entry,
     std::map <uint64_t, std::map <uint64_t, ControlFlowType>> edgeMap;
 
     QuesoX86 quesoX86;
-    QuesoGraph quesoGraph;
+    QuesoGraph * quesoGraph = new QuesoGraph();
 
     queue.push(entry);
     queued.insert(entry);
@@ -112,9 +110,9 @@ QuesoGraph X86Disassembler :: disassemble (uint64_t entry,
                                                    memoryBuffer.g_size(),
                                                    address);
 
-        std::cout << std::hex << address << " " << ix86->queso() << std::endl;
+        ix86 = ix86->copy();
 
-        quesoGraph.absorbInstruction(ix86);
+        quesoGraph->absorbInstruction(ix86);
 
         instructionMap[address] = ix86;
 
@@ -123,25 +121,26 @@ QuesoGraph X86Disassembler :: disassemble (uint64_t entry,
         std::list <uint64_t> :: iterator it;
         for (it = successors.begin(); it != successors.end(); it++) {
             uint64_t successor = *it;
-            std::cout << "found successor " << std::hex << successor << std::endl;
             edgeMap[address][successor] = CFT_NORMAL;
             if (queued.count(successor) == 0) {
                 queued.insert(successor);
                 queue.push(successor);
             }
         }
+
     }
 
-
-    std::cout << 8 << std::endl;
     std::map <uint64_t, std::map <uint64_t, ControlFlowType>> :: iterator it;
     for (it = edgeMap.begin(); it != edgeMap.end(); it++) {
         std::map <uint64_t, ControlFlowType> :: iterator iit;
         for (iit = it->second.begin(); iit != it->second.end(); iit++) {
             Instruction * head = instructionMap[it->first];
             Instruction * tail = instructionMap[iit->first];
+            if ((head == NULL) || (tail == NULL))
+                continue;
             ControlFlowType type = iit->second;
-            quesoGraph.absorbQuesoEdge(new QuesoEdge(type, head, tail));
+            QuesoEdge * newQuesoEdge = new QuesoEdge(type, head, tail);
+            quesoGraph->absorbQuesoEdge(newQuesoEdge);
         }
     }
 

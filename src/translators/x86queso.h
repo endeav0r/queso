@@ -125,6 +125,13 @@ class QuesoX86 : public Translator {
 
     public :
         QuesoX86 () {ix86 = NULL;}
+        ~QuesoX86 () {
+            if (ix86 != NULL)
+                delete ix86;
+        }
+
+        // this instruction will be freed next time translate is called
+        // user must copy result if they want to store it
         InstructionX86 * translate (const uint8_t * data, size_t size);
         InstructionX86 * translate (const uint8_t * data, size_t size, uint64_t pc);
 };

@@ -1,6 +1,6 @@
 OBJS = lua.o luint64.o
 
-CXXFLAGS = -g -Werror -Wall -std=c++11 -O2
+CXXFLAGS = -g -Wall -std=c++11 -O2
 INCLUDE = -I../
 
 all : $(OBJS)
