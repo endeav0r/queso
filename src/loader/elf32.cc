@@ -24,7 +24,7 @@ const Elf32_Shdr * Elf32 :: _shdr (unsigned int index) {
         return NULL;
     if ((index + 1) * _ehdr()->e_shentsize + _ehdr()->e_shoff > size)
         return NULL;
-    return (Elf32_Shdr *) &(data[_ehdr()->e_phoff + (_ehdr()->e_shentsize * index)]);
+    return (Elf32_Shdr *) &(data[_ehdr()->e_shoff + (_ehdr()->e_shentsize * index)]);
 }
 
 
@@ -113,11 +113,10 @@ std::list <LoaderSymbol> Elf32 :: symbols () {
         const Elf32_Shdr * link = _shdr(shdr->sh_link);
 
         for (unsigned int sym_i = 0; sym_i < shdr->sh_size / shdr->sh_entsize; sym_i++) {
-            const Elf32_Sym * sym = (const Elf32_Sym *) _shdr_ent(shdr, shdr_i);
+            const Elf32_Sym * sym = (const Elf32_Sym *) _shdr_ent(shdr, sym_i);
             if (ELF32_ST_TYPE(sym->st_info) == STT_FUNC) {
                 LoaderSymbol symbol((const char *) &(data[link->sh_offset + sym->st_name]),
                                     sym->st_value, LST_FUNCTION);
-                std::cout << symbol.g_address() << "\t" << symbol.g_symbol() << std::endl;
                 symbols.push_back(symbol);
             }
         }

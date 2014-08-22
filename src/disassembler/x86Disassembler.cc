@@ -128,7 +128,6 @@ QuesoGraph * X86Disassembler :: disassemble (uint64_t entry,
             }
         }
 
-        std::cout << ix86->queso() << std::endl;
     }
 
     std::map <uint64_t, std::map <uint64_t, ControlFlowType>> :: iterator it;
