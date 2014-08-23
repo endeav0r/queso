@@ -3,6 +3,8 @@
 
 #include <cstdio>
 #include <inttypes.h>
+#include <memory>
+
 #include "queso/queso.h"
 #include "graph.h"
 

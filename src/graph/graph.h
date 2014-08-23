@@ -55,7 +55,7 @@ class Graph {
         const GraphVertex * absorbVertex (GraphVertex * graphVertex);
         const GraphEdge *   absorbEdge   (GraphEdge * graphEdge);
 
-        const std::map <const GraphVertex *, GraphVertex *> g_vertices () {
+        std::map <const GraphVertex *, GraphVertex *> & g_vertices () {
             return vertices;
         }
 };

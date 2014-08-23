@@ -4,63 +4,66 @@
 #include "translators/x86queso.h"
 #include "luint64.h"
 
+#include <memory>
 #include <string>
 
-#define LUA_DEBUG
+//#define LUA_DEBUG
 
 static const struct luaL_Reg lqueso_lib_f [] = {
-    {"machine", lqueso_machine_new},
-    {"x86translate", lqueso_x86translate},
+    {"machine",        lqueso_machine_new},
+    {"x86translate",   lqueso_x86translate},
     {"x86disassemble", lqueso_x86disassemble},
-    {"elf32", lqueso_elf32_new},
+    {"elf32",          lqueso_elf32_new},
     {NULL, NULL}
 };
 
 static const struct luaL_Reg lqueso_instruction_m [] = {
-    {"__gc", lqueso_instruction_gc},
+    {"__gc",               lqueso_instruction_gc},
     {"depth_instructions", lqueso_instruction_depth_instructions},
-    {"opcode", lqueso_instruction_opcode},
-    {"queso", lqueso_instruction_queso},
+    {"opcode",             lqueso_instruction_opcode},
+    {"queso",              lqueso_instruction_queso},
+    {"g_pc",               lqueso_instruction_g_pc},
     {NULL, NULL}
 };
 
 static const struct luaL_Reg lqueso_machineVariable_m [] = {
-    {"__gc", lqueso_machineVariable_gc},
-    {"name", lqueso_machineVariable_name},
+    {"__gc",  lqueso_machineVariable_gc},
+    {"name",  lqueso_machineVariable_name},
     {"value", lqueso_machineVariable_value},
-    {"bits", lqueso_machineVariable_bits},
+    {"bits",  lqueso_machineVariable_bits},
     {NULL, NULL}
 };
 
 static const struct luaL_Reg lqueso_machine_m [] = {
-    {"__gc", lqueso_machine_gc},
-    {"s_memory", lqueso_machine_s_memory},
-    {"g_memory", lqueso_machine_g_memory},
-    {"s_variable", lqueso_machine_s_variable},
-    {"g_variable", lqueso_machine_g_variable},
-    {"g_memoryModel", lqueso_machine_g_memoryModel},
+    {"__gc",              lqueso_machine_gc},
+    {"s_memory",          lqueso_machine_s_memory},
+    {"g_memory",          lqueso_machine_g_memory},
+    {"s_variable",        lqueso_machine_s_variable},
+    {"g_variable",        lqueso_machine_g_variable},
+    {"g_memoryModel",     lqueso_machine_g_memoryModel},
     {"concreteExecution", lqueso_machine_concreteExecution},
     {NULL, NULL}
 };
 
 static const struct luaL_Reg lqueso_quesoGraph_m [] = {
-    {"__gc", lqueso_quesoGraph_gc},
-    {"dotGraph", lqueso_quesoGraph_dotGraph},
+    {"__gc",       lqueso_quesoGraph_gc},
+    {"dotGraph",   lqueso_quesoGraph_dotGraph},
+    {"g_vertices", lqueso_quesoGraph_g_vertices},
     {NULL, NULL}
 };
 
 static const struct luaL_Reg lqueso_memoryModel_m [] = {
-    {"__gc", lqueso_memoryModel_gc},
+    {"__gc",   lqueso_memoryModel_gc},
     {"s_byte", lqueso_memoryModel_s_byte},
     {"g_byte", lqueso_memoryModel_g_byte},
     {NULL, NULL}
 };
 
 static const struct luaL_Reg lqueso_elf32_m [] = {
-    {"__gc", lqueso_elf32_gc},
-    {"entry", lqueso_elf32_entry},
+    {"__gc",        lqueso_elf32_gc},
+    {"entry",       lqueso_elf32_entry},
     {"memoryModel", lqueso_elf32_memoryModel},
-    {"symbols", lqueso_elf32_symbols},
+    {"symbols",     lqueso_elf32_symbols},
     {NULL, NULL}
 };
 
@@ -229,6 +232,15 @@ int lqueso_instruction_opcode (lua_State * L) {
     lua_pop(L, 1);
 
     lua_pushstring(L, QuesoOpcodeStrings[instruction->g_opcode()]);
+    return 1;
+}
+
+
+int lqueso_instruction_g_pc (lua_State * L) {
+    Instruction * instruction = lqueso_instruction_check(L, -1);
+    lua_pop(L, 1);
+
+    luint64_push(L, instruction->g_pc());
     return 1;
 }
 
@@ -430,22 +442,32 @@ int lqueso_machine_concreteExecution (lua_State * L) {
 
 
 int lqueso_quesoGraph_absorb (lua_State * L, QuesoGraph * quesoGraph) {
-    QuesoGraph ** qGraph = (QuesoGraph **) lua_newuserdata(L, sizeof(QuesoGraph **));
+    std::shared_ptr<QuesoGraph> * qGraph = (std::shared_ptr<QuesoGraph> *)
+        lua_newuserdata(L, sizeof(std::shared_ptr<QuesoGraph> *));
     luaL_getmetatable(L, "lqueso.quesoGraph");
     lua_setmetatable(L, -2);
 
-    *qGraph = quesoGraph;
+    *qGraph = std::shared_ptr<QuesoGraph>(quesoGraph);
 
     return 1;
 }
 
 
 QuesoGraph * lqueso_quesoGraph_check (lua_State * L, int position) {
-    QuesoGraph * quesoGraph;
+    std::shared_ptr<QuesoGraph> * quesoGraph;
     void ** userdata = (void **) luaL_checkudata(L, position, "lqueso.quesoGraph");
     luaL_argcheck(L, userdata != NULL, position, "lqueso.quesoGraph expected");
-    quesoGraph = (QuesoGraph *) *userdata;
-    return quesoGraph;
+    quesoGraph = (std::shared_ptr<QuesoGraph> *) *userdata;
+    return quesoGraph->get();
+}
+
+
+std::shared_ptr<QuesoGraph> lqueso_quesoGraph_shared_ptr_check (lua_State * L, int position) {
+    std::shared_ptr<QuesoGraph> * quesoGraph;
+    void ** userdata = (void **) luaL_checkudata(L, position, "lqueso.quesoGraph");
+    luaL_argcheck(L, userdata != NULL, position, "lqueso.quesoGraph expected");
+    quesoGraph = (std::shared_ptr<QuesoGraph> *) *userdata;
+    return *quesoGraph;
 }
 
 
@@ -473,6 +495,42 @@ int lqueso_quesoGraph_dotGraph (lua_State * L) {
 
     std::string dotGraph = quesoGraph->dotGraph();
     lua_pushstring(L, dotGraph.c_str());
+
+    return 1;
+}
+
+
+int lqueso_quesoGraph_push_instruction (lua_State * L,
+                                        QuesoGraph * quesoGraph,
+                                        Instruction * instruction) {
+    const Instruction ** luaIns = (const Instruction **) lua_newuserdata(L, sizeof(Instruction **));
+    luaL_getmetatable(L, "lqueso.instruction");
+    lua_setmetatable(L, -2);
+
+    *luaIns = instruction;
+
+    return 1;
+}
+
+
+int lqueso_quesoGraph_g_vertices (lua_State * L) {
+    QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, -1);
+    lua_pop(L, 1);
+
+    lua_newtable(L);
+
+    int i = 1;
+
+    std::map <const GraphVertex *, GraphVertex *> :: const_iterator it;
+    for (it = quesoGraph->g_vertices().begin(); it != quesoGraph->g_vertices().end(); it++) {
+        Instruction * instruction = dynamic_cast<Instruction *>(it->second);
+        if (instruction == NULL)
+            continue;
+
+        lua_pushinteger(L, i++);
+        lqueso_quesoGraph_push_instruction(L, quesoGraph, instruction);
+        lua_settable(L, -3);
+    }
 
     return 1;
 }
