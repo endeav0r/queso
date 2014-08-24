@@ -2,6 +2,12 @@
 
 #include <cstdlib>
 
+static const struct luaL_Reg luint64_lib_f [] = {
+    {"luint64", luint64},
+    {"luint32", luint32},
+    {NULL, NULL}
+};
+
 static const struct luaL_Reg luint64_lib_m [] = {
     {"__add",      luint64_add},
     {"__sub",      luint64_sub},
@@ -20,14 +26,16 @@ static const struct luaL_Reg luint64_lib_m [] = {
 LUALIB_API int luaopen_luint64 (lua_State * L)
 {
     luaL_newmetatable(L, "luint64.uint64_t");
-    luaL_register    (L, NULL, luint64_lib_m);
+    luaL_setfuncs    (L, luint64_lib_m, 0);
+    /*
+    luaL_newlib      (L, luint64_lib_m);
     lua_pushstring   (L, "__index");
     lua_pushvalue    (L, -2);
     lua_settable     (L, -3);
+    */
 
-    lua_register(L, "luint32", luint32);
-    lua_register(L, "luint64", luint64);
-    
+    luaL_newlib(L, luint64_lib_f);
+
     return 1;
 }
 

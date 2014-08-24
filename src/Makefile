@@ -2,7 +2,7 @@ OBJS = queso/*.o translators/*.o lua/*.o machine/*.o \
        disassembler/*.o graph/*.o containers/*.o loader/*.o
 
 CXXFLAGS = -g -Werror -Wall -std=c++11 -O2
-LIBS = -ludis86 -llua5.1 -L/usr/local/lib
+LIBS = -ludis86 -llua5.2 -L/usr/local/lib
 
 all :
 	make -C containers

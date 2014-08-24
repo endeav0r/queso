@@ -7,6 +7,14 @@
 #include <memory>
 #include <string>
 
+
+struct _lqueso_gc_wrapper {
+    unsigned int references;
+    struct _lqueso_gc_wrapper * parent;
+    void * object;
+};
+
+
 //#define LUA_DEBUG
 
 static const struct luaL_Reg lqueso_lib_f [] = {
@@ -69,45 +77,46 @@ static const struct luaL_Reg lqueso_elf32_m [] = {
 
 
 LUALIB_API int luaopen_lqueso (lua_State * L) {
-    luaL_register(L, "lqueso", lqueso_lib_f);
-
     luaL_newmetatable(L, "lqueso.instruction");
-    luaL_register(L, NULL, lqueso_instruction_m);
+    luaL_setfuncs(L, lqueso_instruction_m, 0);
     lua_pushstring(L, "__index");
     lua_pushvalue(L, -2);
     lua_settable(L, -3);
 
     luaL_newmetatable(L, "lqueso.machineVariable");
-    luaL_register(L, NULL, lqueso_machineVariable_m);
+    luaL_setfuncs(L, lqueso_machineVariable_m, 0);
     lua_pushstring(L, "__index");
     lua_pushvalue(L, -2);
     lua_settable(L, -3);
 
     luaL_newmetatable(L, "lqueso.machine");
-    luaL_register(L, NULL, lqueso_machine_m);
+    luaL_setfuncs(L, lqueso_machine_m, 0);
     lua_pushstring(L, "__index");
     lua_pushvalue(L, -2);
     lua_settable(L, -3);
 
     luaL_newmetatable(L, "lqueso.quesoGraph");
-    luaL_register(L, NULL, lqueso_quesoGraph_m);
+    luaL_setfuncs(L, lqueso_quesoGraph_m, 0);
     lua_pushstring(L, "__index");
     lua_pushvalue(L, -2);
     lua_settable(L, -3);
 
     luaL_newmetatable(L, "lqueso.memoryModel");
-    luaL_register(L, NULL, lqueso_memoryModel_m);
+    luaL_setfuncs(L, lqueso_memoryModel_m, 0);
     lua_pushstring(L, "__index");
     lua_pushvalue(L, -2);
     lua_settable(L, -3);
 
     luaL_newmetatable(L, "lqueso.elf32");
-    luaL_register(L, NULL, lqueso_elf32_m);
+    luaL_setfuncs(L, lqueso_elf32_m, 0);
     lua_pushstring(L, "__index");
     lua_pushvalue(L, -2);
     lua_settable(L, -3);
 
-    return 4 + luaopen_luint64(L);
+    luaL_requiref(L, "luint64", luaopen_luint64, 1);
+    luaL_newlib(L, lqueso_lib_f);
+
+    return 1;
 }
 
 int lqueso_x86translate (lua_State * L) {
@@ -442,32 +451,22 @@ int lqueso_machine_concreteExecution (lua_State * L) {
 
 
 int lqueso_quesoGraph_absorb (lua_State * L, QuesoGraph * quesoGraph) {
-    std::shared_ptr<QuesoGraph> * qGraph = (std::shared_ptr<QuesoGraph> *)
-        lua_newuserdata(L, sizeof(std::shared_ptr<QuesoGraph> *));
+    QuesoGraph ** qGraph = (QuesoGraph **) lua_newuserdata(L, sizeof(QuesoGraph **));
     luaL_getmetatable(L, "lqueso.quesoGraph");
     lua_setmetatable(L, -2);
 
-    *qGraph = std::shared_ptr<QuesoGraph>(quesoGraph);
+    *qGraph = quesoGraph;
 
     return 1;
 }
 
 
 QuesoGraph * lqueso_quesoGraph_check (lua_State * L, int position) {
-    std::shared_ptr<QuesoGraph> * quesoGraph;
+    QuesoGraph * quesoGraph;
     void ** userdata = (void **) luaL_checkudata(L, position, "lqueso.quesoGraph");
     luaL_argcheck(L, userdata != NULL, position, "lqueso.quesoGraph expected");
-    quesoGraph = (std::shared_ptr<QuesoGraph> *) *userdata;
-    return quesoGraph->get();
-}
-
-
-std::shared_ptr<QuesoGraph> lqueso_quesoGraph_shared_ptr_check (lua_State * L, int position) {
-    std::shared_ptr<QuesoGraph> * quesoGraph;
-    void ** userdata = (void **) luaL_checkudata(L, position, "lqueso.quesoGraph");
-    luaL_argcheck(L, userdata != NULL, position, "lqueso.quesoGraph expected");
-    quesoGraph = (std::shared_ptr<QuesoGraph> *) *userdata;
-    return *quesoGraph;
+    quesoGraph = (QuesoGraph *) *userdata;
+    return quesoGraph;
 }
 
 
@@ -515,7 +514,6 @@ int lqueso_quesoGraph_push_instruction (lua_State * L,
 
 int lqueso_quesoGraph_g_vertices (lua_State * L) {
     QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, -1);
-    lua_pop(L, 1);
 
     lua_newtable(L);
 
