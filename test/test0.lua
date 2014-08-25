@@ -1,4 +1,4 @@
-require('lqueso')
+lqueso = require('lqueso')
 
 local test0 = lqueso.elf32('test0')
 

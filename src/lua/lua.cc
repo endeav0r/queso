@@ -194,6 +194,13 @@ int lqueso_instruction_gc (lua_State * L) {
     printf("lqueso_instruction_gc\n");fflush(stdout);
     #endif
 
+    lua_getuservalue(L, -1);
+    if (lua_isnil(L, -1)) {
+        lua_pop(L, 2);
+        return 0;
+    }
+    lua_pop(L, 1);
+
     Instruction * instruction = lqueso_instruction_check(L, -1);
     lua_pop(L, 1);
 
@@ -499,19 +506,6 @@ int lqueso_quesoGraph_dotGraph (lua_State * L) {
 }
 
 
-int lqueso_quesoGraph_push_instruction (lua_State * L,
-                                        QuesoGraph * quesoGraph,
-                                        Instruction * instruction) {
-    const Instruction ** luaIns = (const Instruction **) lua_newuserdata(L, sizeof(Instruction **));
-    luaL_getmetatable(L, "lqueso.instruction");
-    lua_setmetatable(L, -2);
-
-    *luaIns = instruction;
-
-    return 1;
-}
-
-
 int lqueso_quesoGraph_g_vertices (lua_State * L) {
     QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, -1);
 
@@ -526,7 +520,12 @@ int lqueso_quesoGraph_g_vertices (lua_State * L) {
             continue;
 
         lua_pushinteger(L, i++);
-        lqueso_quesoGraph_push_instruction(L, quesoGraph, instruction);
+        lqueso_instruction_absorb(L, instruction);
+        lua_newtable(L);
+        lua_pushstring(L, "quesoGraph");
+        lua_pushvalue(L, 1);
+        lua_settable(L, -3);
+        lua_setuservalue(L, -2);
         lua_settable(L, -3);
     }
 
