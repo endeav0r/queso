@@ -6,7 +6,7 @@ INCLUDE = -I../
 all : $(OBJS)
 
 %.o : %.cc %.h
-	$(CXX) -fpic -c -o $@ $< $(CXXFLAGS) $(INCLUDE)
+	$(CXX) -c -o $@ $< $(CXXFLAGS) $(INCLUDE)
 
 clean :
 	rm -f *.o

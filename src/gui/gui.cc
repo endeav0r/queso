@@ -2,9 +2,15 @@
 
 #include <stdexcept>
 
+#include <iostream>
+
 Gui :: Gui () {
-    if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
-        throw std::runtime_error(std::string("sdl init failed: ") + SDL_GetError());
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS) != 0) {
+        std::string error = "sdl init failed: ";
+        error += SDL_GetError();
+        std::cerr << error << std::endl;
+        throw std::runtime_error(error);
+    }
 
     window = SDL_CreateWindow("queso", 100, 100, 800, 600, SDL_WINDOW_SHOWN);
     if (window == NULL)
@@ -28,10 +34,14 @@ Gui :: ~Gui () {
 void Gui :: draw () {
     SDL_Surface * windowSurface = SDL_GetWindowSurface(window);
 
+    SDL_FillRect(windowSurface, NULL, 0);
+
     std::list <Widget *> :: iterator it;
     for (it = widgets.begin(); it != widgets.end(); it++) {
         (*it)->draw(windowSurface);
     }
+
+    SDL_UpdateWindowSurface(window);
 }
 
 

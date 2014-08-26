@@ -4,7 +4,7 @@ LUA_OBJS = lua/*.o
 GUI_OBJS = gui/*.o
 
 CXXFLAGS = -g -Werror -Wall -std=c++11 -O2
-LIBS = -ludis86 -llua5.2 -L/usr/local/lib
+LIBS = -ludis86 -llua -L/usr/local/lib
 
 all :
 	make -C containers
@@ -16,8 +16,8 @@ all :
 	make -C machine
 	make -C queso
 	make -C translators
-	$(CXX) -shared -fPIC -o lqueso.so $(OBJS) $(LIBS) $(CXXFLAGS) -I./
-	$(CXX) -o quesoGui $(OBJS) $(GUI_OBJS) $(LIBS) -lSDL2 -lSDL2_ttf
+	#$(CXX) -shared -fPIC -o lqueso.so $(OBJS) $(LIBS) $(CXXFLAGS) -I./
+	$(CXX) -o quesoGui $(OBJS) $(GUI_OBJS) $(LIBS) -lSDL2main -lSDL2 -lSDL2_ttf
 
 %.o : %.cc %.h
 	$(CXX) -fpic -c -o $@ $< $(CXXFLAGS)
