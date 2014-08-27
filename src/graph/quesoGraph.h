@@ -21,34 +21,22 @@ class QuesoEdge : public GraphEdge {
     private :
         ControlFlowType type;
     public :
-        QuesoEdge (ControlFlowType type,
-                   Instruction * head,
-                   Instruction * tail) {
-            this->type = type;
+        QuesoEdge (Graph * graph,
+                   uint64_t head,
+                   uint64_t tail,
+                   ControlFlowType type) {
+            this->graph = graph;
             this->head = head;
             this->tail = tail;
+            this->type = type;
         }
+        
         QuesoEdge () {}
 
         ControlFlowType g_type () { return type; }
 
-        GraphEdge * copy () const {
-            printf("start quesoEdge copy\n");fflush(stdout);
-            printf("head %p\n", head);fflush(stdout);
-            printf("dynamic_cast<GraphEdge *>(head)\n");fflush(stdout);
-            printf("%p\n", dynamic_cast<GraphEdge *>(head));fflush(stdout);
-            printf("dynamic_cast<Instruction *>(head)\n");fflush(stdout);
-            printf("%p\n", dynamic_cast<Instruction *>(head)); fflush(stdout);
-            fflush(stdout);
-            QuesoEdge * newQuesoEdge = new QuesoEdge(type,
-                                 dynamic_cast<Instruction *>(head),
-                                 dynamic_cast<Instruction *>(tail));
-            printf("end copy\n");fflush(stdout);
-            return newQuesoEdge;
-        }
-
-        const Instruction * g_head () { return dynamic_cast<Instruction *>(head); }
-        const Instruction * g_tail () { return dynamic_cast<Instruction *>(tail); }
+        Instruction * g_head () { return dynamic_cast<Instruction *>(graph->g_vertex(head)); }
+        Instruction * g_tail () { return dynamic_cast<Instruction *>(graph->g_vertex(tail)); }
 };
 
 

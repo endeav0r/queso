@@ -1,9 +1,9 @@
 #ifndef elf32_HEADER
 #define elf32_HEADER
 
-#include "loader.h"
+#include "elf.h"
 
-#include <elf.h>
+#include "loader.h"
 
 class Elf32 : public Loader {
     private :

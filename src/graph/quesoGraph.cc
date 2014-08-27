@@ -37,7 +37,7 @@ void subQuesoText (std::stringstream & ss, const Instruction * instruction, unsi
 std::string QuesoGraph :: dotGraph () {
     std::stringstream ss;
     
-    std::map <const GraphVertex *, GraphVertex *> :: iterator it;
+    std::map <uint64_t, GraphVertex *> :: iterator it;
 
     ss << "digraph G {" << std::endl;
 

@@ -1,7 +1,6 @@
 #include "elf32.h"
 
 #include <cstdio>
-#include <elf.h>
 #include <iostream>
 
 

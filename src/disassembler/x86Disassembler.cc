@@ -87,61 +87,65 @@ std::list <uint64_t> X86Disassembler :: evalEip (const InstructionX86 * ix86) {
     return std::list <uint64_t> (eips.begin(), eips.end());
 }
 
+
+class X86DisassemblerNext {
+    public :
+        bool has_predecessor;
+        uint64_t predecessor_vIndex;
+        uint64_t successor_address;
+        X86DisassemblerNext (uint64_t predecessor_vIndex, uint64_t successor_address)
+            : predecessor_vIndex (predecessor_vIndex),
+              successor_address (successor_address),
+              has_predecessor (true) {}
+};
+
+
 QuesoGraph * X86Disassembler :: disassemble (uint64_t entry,
-                                         const MemoryModel * memoryModel) {
+                                         const MemoryModel & memoryModel) {
     std::unordered_set <uint64_t> queued;
-    std::queue <uint64_t> queue;
-    std::map <uint64_t, Instruction *> instructionMap;
-    std::map <uint64_t, std::map <uint64_t, ControlFlowType>> edgeMap;
+    std::queue <X86DisassemblerNext> queue;
+
+    X86DisassemblerNext first(0, entry);
+    first.has_predecessor = false;
+
+    queue.push(first);
 
     QuesoX86 quesoX86;
     QuesoGraph * quesoGraph = new QuesoGraph();
 
-    queue.push(entry);
     queued.insert(entry);
 
     while (queue.size() > 0) {
-        uint64_t address = queue.front();
+        X86DisassemblerNext next = queue.front();
         queue.pop();
 
-        MemoryBuffer memoryBuffer = memoryModel->g_bytes(address, 16);
+        MemoryBuffer memoryBuffer = memoryModel.g_bytes(next.successor_address, 16);
 
         InstructionX86 * ix86 = quesoX86.translate(memoryBuffer.g_data(),
                                                    memoryBuffer.g_size(),
-                                                   address);
+                                                   next.successor_address);
 
         ix86 = ix86->copy();
 
         quesoGraph->absorbInstruction(ix86);
 
-        instructionMap[address] = ix86;
+        if (next.has_predecessor)
+            quesoGraph->absorbQuesoEdge(new QuesoEdge(quesoGraph,
+                                                      next.predecessor_vIndex,
+                                                      ix86->g_vIndex(),
+                                                      CFT_NORMAL));
 
         std::list <uint64_t> successors = evalEip(ix86);
 
         std::list <uint64_t> :: iterator it;
         for (it = successors.begin(); it != successors.end(); it++) {
-            uint64_t successor = *it;
-            edgeMap[address][successor] = CFT_NORMAL;
-            if (queued.count(successor) == 0) {
-                queued.insert(successor);
-                queue.push(successor);
+            uint64_t successor_address = *it;
+            if (queued.count(successor_address) == 0) {
+                queued.insert(successor_address);
+                queue.push(X86DisassemblerNext(ix86->g_vIndex(), successor_address));
             }
         }
 
-    }
-
-    std::map <uint64_t, std::map <uint64_t, ControlFlowType>> :: iterator it;
-    for (it = edgeMap.begin(); it != edgeMap.end(); it++) {
-        std::map <uint64_t, ControlFlowType> :: iterator iit;
-        for (iit = it->second.begin(); iit != it->second.end(); iit++) {
-            Instruction * head = instructionMap[it->first];
-            Instruction * tail = instructionMap[iit->first];
-            if ((head == NULL) || (tail == NULL))
-                continue;
-            ControlFlowType type = iit->second;
-            QuesoEdge * newQuesoEdge = new QuesoEdge(type, head, tail);
-            quesoGraph->absorbQuesoEdge(newQuesoEdge);
-        }
     }
 
     return quesoGraph;

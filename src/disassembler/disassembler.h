@@ -6,8 +6,8 @@
 
 class Disassembler {
     public :
-        virtual QuesoGraph disassemble (uint64_t entry,
-                                        const MemoryModel & memoryModel) = 0;
+        virtual QuesoGraph * disassemble (uint64_t entry,
+                                          const MemoryModel & memoryModel) = 0;
 };
 
 #endif

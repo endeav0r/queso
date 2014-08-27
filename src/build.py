@@ -6,9 +6,9 @@ import thread
 import os
 
 COMPILER = 'g++'
-INCLUDE = '-I./ -I/usr/local/include/SDL2 -I/usr/local/include/ -lSDL2main'
+INCLUDE = '-I./ -I/usr/local/include/SDL2 -I/usr/local/include/'
 FLAGS = '-O2 -std=c++11 -DCYGWIN'
-LIB = '-llua -ludis86 -L/usr/local/lib -lcygwin -lSDL2main -lSDL2 -lSDL2_ttf'
+LIB = '-ludis86 -L/usr/local/lib -lcygwin -lSDL2main -lSDL2 -lSDL2_ttf -mwindows'
 
 sourceFiles = []
 
@@ -26,7 +26,8 @@ def build (flags) :
 
     for sourceFile in sourceFiles :
 
-        if os.path.exists(sourceFile['obj']) :
+        if os.path.exists(sourceFile['obj']) and \
+           os.path.getmtime(sourceFile['source']) < os.path.getmtime(sourceFile['obj']) :
             print 'skip', sourceFile['source']
             continue
 
@@ -51,8 +52,11 @@ def build (flags) :
 
 def clean () :
     for sourceFile in sourceFiles :
-        print 'delete', sourceFile['obj']
-        os.unlink(sourceFile['obj'])
+        try :
+            os.unlink(sourceFile['obj'])
+            print 'delete', sourceFile['obj']
+        except :
+            pass
 
 
 addSourceFile('containers/memoryModel')
@@ -63,10 +67,11 @@ addSourceFile('gui/gui')
 addSourceFile('gui/guiButton')
 addSourceFile('gui/widget')
 addSourceFile('gui/quesoGui')
+addSourceFile('gui/guiGraph')
 addSourceFile('loader/elf32')
 addSourceFile('loader/loader')
-addSourceFile('lua/lua')
-addSourceFile('lua/luint64')
+#addSourceFile('lua/lua')
+#addSourceFile('lua/luint64')
 addSourceFile('machine/machine')
 addSourceFile('queso/queso')
 addSourceFile('queso/generic_instructions')
