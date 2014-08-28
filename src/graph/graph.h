@@ -22,9 +22,14 @@ class Graph {
 
         ~Graph ();
         const GraphVertex * absorbVertex (GraphVertex * graphVertex);
+        const GraphVertex * absorbVertex (GraphVertex * graphVertex, uint64_t vIndex);
         const GraphEdge *   absorbEdge   (GraphEdge * graphEdge);
 
-        uint64_t nextVIndex () { return _nextVIndex++; }
+        uint64_t nextVIndex () { 
+            while (vertices.count(_nextVIndex) > 0)
+                _nextVIndex++;
+            return _nextVIndex++;
+        }
 
         GraphVertex * g_vertex (uint64_t vIndex) {
             if (vertices.count(vIndex) > 0)
@@ -52,6 +57,11 @@ class GraphVertex {
         void setGraph (Graph * graph) {
             this->graph = graph;
             this->vIndex = graph->nextVIndex();
+        }
+
+        void setGraph (Graph * graph, uint64_t vIndex) {
+            this->graph = graph;
+            this->vIndex = vIndex;
         }
 
         uint64_t g_vIndex () { return vIndex; }

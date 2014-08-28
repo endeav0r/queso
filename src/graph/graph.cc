@@ -76,6 +76,13 @@ const GraphVertex * Graph :: absorbVertex (GraphVertex * graphVertex) {
 }
 
 
+const GraphVertex * Graph :: absorbVertex (GraphVertex * graphVertex, uint64_t vIndex) {
+    graphVertex->setGraph(this, vIndex);
+    vertices[graphVertex->g_vIndex()] = graphVertex;
+    return graphVertex;
+}
+
+
 const GraphEdge * Graph :: absorbEdge (GraphEdge * graphEdge) {
     graphEdge->g_head()->insertEdge(graphEdge);
     graphEdge->g_tail()->insertEdge(graphEdge);
