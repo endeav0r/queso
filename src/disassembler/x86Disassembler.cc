@@ -90,9 +90,9 @@ std::list <uint64_t> X86Disassembler :: evalEip (const InstructionX86 * ix86) {
 
 class X86DisassemblerNext {
     public :
-        bool has_predecessor;
         uint64_t predecessor_vIndex;
         uint64_t successor_address;
+        bool has_predecessor;
         X86DisassemblerNext (uint64_t predecessor_vIndex, uint64_t successor_address)
             : predecessor_vIndex (predecessor_vIndex),
               successor_address (successor_address),
