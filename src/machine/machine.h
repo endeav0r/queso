@@ -120,7 +120,7 @@ class Machine {
         Machine ();
         Machine fork ();
 
-        void concreteExecution (const Instruction * instruction);
+        void concreteExecution (Instruction * instruction);
 
         void          s_variable (const MachineVariable & machineVariable);
         void          s_memory   (uint64_t address, uint8_t * bytes, size_t size);

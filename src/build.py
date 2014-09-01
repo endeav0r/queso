@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python
 
 import subprocess
 import sys
@@ -6,9 +6,11 @@ import thread
 import os
 
 COMPILER = 'g++'
-INCLUDE = '-I./ -I/usr/local/include/SDL2 -I/usr/local/include/'
+INCLUDE = '-I./ -I/usr/local/include/SDL2 -I/usr/local/include/ -I/usr/include/lua5.2'
 FLAGS = '-O2 -std=c++11 -DCYGWIN'
-LIB = '-ludis86 -L/usr/local/lib -lcygwin -lSDL2main -lSDL2 -lSDL2_ttf -mwindows'
+LIB = '-ludis86 -L/usr/local/lib -lSDL2main -lSDL2 -lSDL2_ttf'
+CYGWIN = '-lcygwin -mwindows'
+LINUX = '-llua5.2'
 
 sourceFiles = []
 
@@ -32,7 +34,7 @@ def build (flags) :
             continue
 
         cmd = ' '.join([COMPILER, \
-                        '-c -o', \
+                        '-c -fPIC -o', \
                         sourceFile['obj'], \
                         sourceFile['source'], \
                         INCLUDE, \
@@ -42,21 +44,43 @@ def build (flags) :
         if (executeCommand(cmd)) :
             return
 
+    # build quesoGui
     cmd = ' '.join([COMPILER, \
                     '-o quesoGui', \
                     ' '.join(map(lambda x: x['obj'], sourceFiles)), \
                     LIB, \
                     ])
+    if 'linux' not in flags :
+        cmd += ' ' + CYGWIN
+    else :
+        cmd += ' ' + LINUX
+    print cmd
+    executeCommand(cmd)
+
+    # build lqueso.so
+    cmd = ' '.join([COMPILER, \
+                    '-shared -fPIC -o lqueso.so', \
+                    ' '.join(map(lambda x: x['obj'], sourceFiles)), \
+                    LIB, \
+                   ])
+    if 'linux' in flags :
+        cmd += ' ' + LINUX
+    else :
+        cmd += ' ' + CYGWIN
     print cmd
     executeCommand(cmd)
 
 def clean () :
-    for sourceFile in sourceFiles :
+    unlinkFiles = map(lambda x: x['obj'], sourceFiles)
+    unlinkFiles.append('lqueso.so')
+    unlinkFiles.append('quesoGui')
+    for unlinkFile in unlinkFiles :
         try :
-            os.unlink(sourceFile['obj'])
-            print 'delete', sourceFile['obj']
+            os.unlink(unlinkFile)
+            print 'delete', unlinkFile
         except :
             pass
+    
 
 
 addSourceFile('containers/memoryModel')
@@ -70,11 +94,12 @@ addSourceFile('gui/quesoGui')
 addSourceFile('gui/guiGraph')
 addSourceFile('loader/elf32')
 addSourceFile('loader/loader')
-#addSourceFile('lua/lua')
-#addSourceFile('lua/luint64')
+addSourceFile('lua/lua')
+addSourceFile('lua/luint64')
 addSourceFile('machine/machine')
-addSourceFile('queso/queso')
 addSourceFile('queso/generic_instructions')
+addSourceFile('queso/queso')
+addSourceFile('queso/spicyQueso')
 addSourceFile('translators/x86queso')
 
 if len(sys.argv) == 1 :
@@ -82,4 +107,4 @@ if len(sys.argv) == 1 :
 elif sys.argv[1] == 'clean' :
     clean()
 elif sys.argv[1] == 'build' :
-    build(argv[2:])
+    build(sys.argv[2:])

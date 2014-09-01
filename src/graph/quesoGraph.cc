@@ -22,12 +22,12 @@ std::string instructionDotName (const Instruction * instruction) {
     return tmp;
 }
 
-void subQuesoText (std::stringstream & ss, const Instruction * instruction, unsigned int depth) {
+void subQuesoText (std::stringstream & ss, Instruction * instruction, unsigned int depth) {
     std::string spacers;
     for (unsigned int i = 0; i < depth; i++)
         spacers = spacers + " ";
     ss << "\\l" << spacers << instruction->queso();
-    std::list <Instruction *> :: const_iterator it;
+    std::list <Instruction *> :: iterator it;
     for (it = instruction->g_depth_instructions().begin();
          it != instruction->g_depth_instructions().end();
          it++)
@@ -42,7 +42,7 @@ std::string QuesoGraph :: dotGraph () {
     ss << "digraph G {" << std::endl;
 
     for (it = vertices.begin(); it != vertices.end(); it++) {
-        const Instruction * instruction = dynamic_cast<Instruction *>(it->second);
+        Instruction * instruction = dynamic_cast<Instruction *>(it->second);
         // draw this vertex
         ss << instructionDotName(instruction) << " [label=\"";
         subQuesoText(ss, instruction, 0);

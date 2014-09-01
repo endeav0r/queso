@@ -129,15 +129,15 @@ void Instruction :: copy_depth_instructions (const Instruction * srcInstructions
     this->depth_instructions.clear();
 
     std::list <Instruction *> :: const_iterator it;
-    for (it = srcInstructions->g_depth_instructions().begin();
-         it != srcInstructions->g_depth_instructions().end();
+    for (it = srcInstructions->depth_instructions.begin();
+         it != srcInstructions->depth_instructions.end();
          it++) {
-        Instruction * instruction = *it;
+        const Instruction * instruction = *it;
         this->depth_instructions.push_back(instruction->copy());
     }
 }
 
-const std::list <Instruction *> & Instruction :: g_depth_instructions () const {
+std::list <Instruction *> & Instruction :: g_depth_instructions () {
     return depth_instructions;
 }
 
@@ -147,15 +147,15 @@ void Instruction :: push_depth_instruction (Instruction * instruction) {
 
 
 void Instruction :: var_dominators (std::list <std::string> & dominator_variables,
-                                    std::list <const Instruction *> & dominator_instructions) const {
+                                    std::list <Instruction *> & dominator_instructions) {
 
     // if this is a queso variable
     if (opcode != USER) {
         // get name of operand written by this instruction
         std::string var_name = "";
-        if (const Variable * variable = dynamic_cast<const Variable *>(operand_written()))
+        if (Variable * variable = dynamic_cast<Variable *>(operand_written()))
             var_name = variable->g_name();
-        else if (const Array * array = dynamic_cast<const Array *>(operand_written()))
+        else if (Array * array = dynamic_cast<Array *>(operand_written()))
             var_name = array->g_name();
 
     /*
@@ -205,8 +205,8 @@ void Instruction :: var_dominators (std::list <std::string> & dominator_variable
 }
 
 
-const std::list <const Instruction *> Instruction :: var_dominators (std::string name) const {
-    std::list <const Instruction *> dominator_instructions;
+std::list <Instruction *> Instruction :: var_dominators (std::string name) {
+    std::list <Instruction *> dominator_instructions;
     std::list <std::string>   dominator_variables;
 
     dominator_variables.push_back(name);
@@ -216,6 +216,28 @@ const std::list <const Instruction *> Instruction :: var_dominators (std::string
     dominator_instructions.reverse();
 
     return dominator_instructions;
+}
+
+
+void Instruction_flatten (std::list <Instruction *> & instructions,
+                          Instruction * instruction) {
+    instructions.push_back(instruction);
+
+    std::list <Instruction *> :: iterator it;
+    for (it = instruction->g_depth_instructions().begin();
+         it != instruction->g_depth_instructions().end();
+         it++) {
+        Instruction_flatten(instructions, *it);
+    }
+}
+
+
+std::list <Instruction *> Instruction :: flatten () {
+    std::list <Instruction *> instructions;
+
+    Instruction_flatten(instructions, this);
+
+    return instructions;
 }
 
 
@@ -229,14 +251,14 @@ InstructionAssign :: ~InstructionAssign () {
 }
 
 
-const std::list <Operand *> InstructionAssign :: operands_read () const  {
+std::list <Operand *> InstructionAssign :: operands_read () {
     std::list <Operand *> operands;
     operands.push_back(src);
     return operands;
 }
 
 
-const std::list <Operand *> InstructionAssign :: operands () const  {
+std::list <Operand *> InstructionAssign :: operands () {
     std::list <Operand *> operands;
     operands.push_back(dst);
     operands.push_back(src);
@@ -307,7 +329,7 @@ InstructionStore :: ~InstructionStore () {
 }
 
 
-const std::list <Operand *> InstructionStore :: operands_read () const {
+std::list <Operand *> InstructionStore :: operands_read () {
     std::list <Operand *> operands;
     operands.push_back(srcmem);
     operands.push_back(address);
@@ -315,7 +337,7 @@ const std::list <Operand *> InstructionStore :: operands_read () const {
     return operands;
 }
 
-const std::list <Operand *> InstructionStore :: operands () const {
+std::list <Operand *> InstructionStore :: operands () {
     std::list <Operand *> operands;
     operands.push_back(dstmem);
     operands.push_back(srcmem);
@@ -362,14 +384,14 @@ InstructionLoad :: ~InstructionLoad () {
     delete address;
 }
 
-const std::list <Operand *> InstructionLoad :: operands_read () const  {
+std::list <Operand *> InstructionLoad :: operands_read () {
     std::list <Operand *> operands;
     operands.push_back(mem);
     operands.push_back(address);
     return operands;
 }
 
-const std::list <Operand *> InstructionLoad :: operands () const  {
+std::list <Operand *> InstructionLoad :: operands () {
     std::list <Operand *> operands;
     operands.push_back(dst);
     operands.push_back(mem);
@@ -418,7 +440,7 @@ InstructionIte :: ~InstructionIte () {
     delete e;
 }
 
-const std::list <Operand *> InstructionIte :: operands_read () const  {
+std::list <Operand *> InstructionIte :: operands_read () {
     std::list <Operand *> operands;
     operands.push_back(condition);
     operands.push_back(t);
@@ -426,7 +448,7 @@ const std::list <Operand *> InstructionIte :: operands_read () const  {
     return operands;
 }
 
-const std::list <Operand *> InstructionIte :: operands () const  {
+std::list <Operand *> InstructionIte :: operands () {
     std::list <Operand *> operands;
     operands.push_back(dst);
     operands.push_back(condition);
@@ -478,13 +500,13 @@ InstructionSignExtend :: ~InstructionSignExtend () {
     delete src;
 }
 
-const std::list <Operand *> InstructionSignExtend :: operands_read () const  {
+std::list <Operand *> InstructionSignExtend :: operands_read () {
     std::list <Operand *> operands;
     operands.push_back(src);
     return operands;
 }
 
-const std::list <Operand *> InstructionSignExtend :: operands () const  {
+std::list <Operand *> InstructionSignExtend :: operands () {
     std::list <Operand *> operands;
     operands.push_back(dst);
     operands.push_back(src);
@@ -544,14 +566,14 @@ InstructionArithmetic :: ~InstructionArithmetic () {
     delete rhs;
 }
 
-const std::list <Operand *> InstructionArithmetic :: operands_read () const  {
+std::list <Operand *> InstructionArithmetic :: operands_read () {
     std::list <Operand *> operands;
     operands.push_back(lhs);
     operands.push_back(rhs);
     return operands;
 }
 
-const std::list <Operand *> InstructionArithmetic :: operands () const  {
+std::list <Operand *> InstructionArithmetic :: operands () {
     std::list <Operand *> operands;
     operands.push_back(dst);
     operands.push_back(lhs);
@@ -609,14 +631,14 @@ InstructionCmp :: ~InstructionCmp () {
     delete rhs;
 }
 
-const std::list <Operand *> InstructionCmp :: operands_read () const  {
+std::list <Operand *> InstructionCmp :: operands_read () {
     std::list <Operand *> operands;
     operands.push_back(lhs);
     operands.push_back(rhs);
     return operands;
 }
 
-const std::list <Operand *> InstructionCmp :: operands () const  {
+std::list <Operand *> InstructionCmp :: operands () {
     std::list <Operand *> operands;
     operands.push_back(dst);
     operands.push_back(lhs);

@@ -8,11 +8,11 @@
 
 class X86Disassembler : public Disassembler {
     private :
-        static std::list <uint64_t> evalEip (const InstructionX86 * ix86);
+        static std::list <uint64_t> evalEip (InstructionX86 * ix86);
 
     public :
-        QuesoGraph * disassemble (uint64_t entry,
-                                  const MemoryModel & memoryModel);
+        static QuesoGraph * disassemble (uint64_t entry,
+               			                 const MemoryModel * memoryModel);
 };
 
 #endif

@@ -134,7 +134,7 @@ uint64_t Machine :: operandValue (const Operand * operand) {
 }
 
 
-void Machine :: concreteExecution (const Instruction * instruction) {
+void Machine :: concreteExecution (Instruction * instruction) {
     this->stop_flag = false;
 
     if (pre_instructionHook != NULL)
@@ -340,7 +340,7 @@ void Machine :: concreteExecution (const Instruction * instruction) {
     if (post_instructionHook != NULL)
         post_instructionHook(this, instruction, post_instructionHook_data);
 
-    std::list <Instruction *> :: const_iterator it;
+    std::list <Instruction *> :: iterator it;
     for (it = instruction->g_depth_instructions().begin();
          it != instruction->g_depth_instructions().end();
          it++) {

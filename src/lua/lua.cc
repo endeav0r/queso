@@ -145,7 +145,7 @@ int lqueso_x86disassemble (lua_State * L) {
 
     lua_pop(L, 2);
 
-    QuesoGraph * quesoGraph = X86Disassembler :: disassemble(entry, memoryModel);
+    QuesoGraph * quesoGraph = X86Disassembler::disassemble(entry, memoryModel);
 
     lqueso_quesoGraph_absorb(L, quesoGraph);
 
@@ -513,7 +513,7 @@ int lqueso_quesoGraph_g_vertices (lua_State * L) {
 
     int i = 1;
 
-    std::map <const GraphVertex *, GraphVertex *> :: const_iterator it;
+    std::map <uint64_t, GraphVertex *> :: iterator it;
     for (it = quesoGraph->g_vertices().begin(); it != quesoGraph->g_vertices().end(); it++) {
         Instruction * instruction = dynamic_cast<Instruction *>(it->second);
         if (instruction == NULL)

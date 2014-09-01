@@ -12,15 +12,15 @@ int main (int argc, char * argv[]) {
     gui.draw();
 
     Elf32 * elf32 = Elf32::load("../test/test0");
-    X86Disassembler * x86Disassembler = new X86Disassembler();
 
-    QuesoGraph * quesoGraph = x86Disassembler->disassemble(elf32->entry(), elf32->memoryModel());
+    MemoryModel memoryModel = elf32->memoryModel();
+
+    QuesoGraph * quesoGraph = X86Disassembler::disassemble(elf32->entry(), &memoryModel);
 
     std::cout << quesoGraph->dotGraph() << std::endl;
 
     delete elf32;
     delete quesoGraph;
-    delete x86Disassembler;
 
     return 0;
 }

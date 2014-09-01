@@ -14,8 +14,8 @@
  * 3) if we encounter a load instruction, we stop
  * 4) if we encounter a variable which is not a flag or rip, we stop
  */
-std::list <uint64_t> X86Disassembler :: evalEip (const InstructionX86 * ix86) {
-    const std::list <const Instruction *> dominators = ix86->var_dominators("eip");
+std::list <uint64_t> X86Disassembler :: evalEip (InstructionX86 * ix86) {
+    std::list <Instruction *> dominators = ix86->var_dominators("eip");
 
     std::list <Machine> machines;
 
@@ -24,9 +24,9 @@ std::list <uint64_t> X86Disassembler :: evalEip (const InstructionX86 * ix86) {
 
     machines.push_back(firstMachine);
 
-    std::list <const Instruction *> :: const_iterator it;
+    std::list <Instruction *> :: iterator it;
     for (it = dominators.begin(); it != dominators.end(); it++) {
-        const Instruction * instruction = *it;
+        Instruction * instruction = *it;
 
         // stop on a load instruction
         if (dynamic_cast<const InstructionLoad *>(instruction))
@@ -34,7 +34,7 @@ std::list <uint64_t> X86Disassembler :: evalEip (const InstructionX86 * ix86) {
 
         Machine & firstMachine = machines.front();
 
-        const std::list <Operand *> read_operands = instruction->operands_read();
+        std::list <Operand *> read_operands = instruction->operands_read();
         std::list <Operand *> :: const_iterator it;
         for (it = read_operands.begin(); it != read_operands.end(); it++) {
             // a read operand is a variable
@@ -101,7 +101,7 @@ class X86DisassemblerNext {
 
 
 QuesoGraph * X86Disassembler :: disassemble (uint64_t entry,
-                                         const MemoryModel & memoryModel) {
+                                         const MemoryModel * memoryModel) {
     std::unordered_set <uint64_t> queued;
     std::queue <X86DisassemblerNext> queue;
 
@@ -119,7 +119,7 @@ QuesoGraph * X86Disassembler :: disassemble (uint64_t entry,
         X86DisassemblerNext next = queue.front();
         queue.pop();
 
-        MemoryBuffer memoryBuffer = memoryModel.g_bytes(next.successor_address, 16);
+        MemoryBuffer memoryBuffer = memoryModel->g_bytes(next.successor_address, 16);
 
         InstructionX86 * ix86 = quesoX86.translate(memoryBuffer.g_data(),
                                                    memoryBuffer.g_size(),

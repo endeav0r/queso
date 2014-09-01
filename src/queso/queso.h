@@ -1,6 +1,7 @@
 #ifndef instruction_HEADER
 #define instruction_HEADER
 
+#include <inttypes.h>
 #include <list>
 #include <string>
 #include "graph/graph.h"
@@ -36,15 +37,15 @@ extern const char * QuesoOpcodeStrings [];
 class Operand {
     protected :
         unsigned int bits;
-        unsigned int ssa;
+        uint64_t ssa;
     public :
         Operand (unsigned int bits)
             : bits (bits), ssa (0) {}
         virtual ~Operand () {}
 
         unsigned int g_bits () const { return bits; }
-        unsigned int g_ssa  () const { return ssa; }
-        void s_ssa (unsigned int ssa) { this->ssa = ssa; }
+        uint64_t g_ssa  () const { return ssa; }
+        void s_ssa (uint64_t ssa) { this->ssa = ssa; }
 
         virtual std::string smtlib2             () const = 0;
         virtual std::string smtlib2_declaration () const = 0;
@@ -114,7 +115,7 @@ class Instruction : public GraphVertex {
         QuesoOpcode opcode;
 
         void var_dominators (std::list <std::string> & dominator_variables,
-                             std::list <const Instruction *> & dominator_instructions) const;
+                             std::list <Instruction *> & dominator_instructions);
     protected :
         void copy_depth_instructions (const Instruction * srcInstruction);
     public :
@@ -138,14 +139,16 @@ class Instruction : public GraphVertex {
         uint64_t    g_pc     () const { return pc; }
         QuesoOpcode g_opcode () const { return opcode; }
 
-        const std::list <Instruction *> & g_depth_instructions () const;
+        std::list <Instruction *> & g_depth_instructions ();
         void push_depth_instruction (Instruction * instruction);
         
-        virtual const Operand * operand_written () const { return NULL; }
-        virtual const std::list <Operand *> operands_read () const { return std::list <Operand *>(); }
-        virtual const std::list <Operand *> operands () { return std::list <Operand *>(); }
+        virtual Operand * operand_written () { return NULL; }
+        virtual std::list <Operand *> operands_read () { return std::list <Operand *>(); }
+        virtual std::list <Operand *> operands () { return std::list <Operand *>(); }
 
-        const std::list <const Instruction *> var_dominators (std::string name) const;
+        std::list <Instruction *> var_dominators (std::string name);
+
+        std::list <Instruction *> flatten ();
         
         virtual const std::string smtlib2 () const { return ""; }
         virtual const std::string queso   () const = 0;
@@ -167,9 +170,9 @@ class InstructionAssign : public Instruction {
         const Variable * g_dst () const { return dst; }
         const Operand  * g_src () const { return src; }
 
-        const Operand * operand_written () const  { return dst; }
-        const std::list <Operand *> operands_read () const ;
-        const std::list <Operand *> operands () const ;
+        Operand * operand_written () { return dst; }
+        std::list <Operand *> operands_read ();
+        std::list <Operand *> operands ();
 
         const std::string smtlib2 () const;
         const std::string queso   () const;
@@ -199,9 +202,9 @@ class InstructionStore : public Instruction {
         const Operand * g_address () const { return address; }
         const Operand * g_value   () const { return value; }
 
-        const Operand * operand_written () const  { return dstmem; }
-        const std::list <Operand *> operands_read () const ;
-        const std::list <Operand *> operands () const ;
+        Operand * operand_written () { return dstmem; }
+        std::list <Operand *> operands_read ();
+        std::list <Operand *> operands ();
 
         const std::string queso   () const;
         const std::string smtlib2 () const;
@@ -222,9 +225,9 @@ class InstructionLoad : public Instruction {
         const Array *    g_mem     () const { return mem; }
         const Operand *  g_address () const { return address; }
 
-        const Operand * operand_written () const  { return dst; }
-        const std::list <Operand *> operands_read () const ;
-        const std::list <Operand *> operands () const ;
+        Operand * operand_written () { return dst; }
+        std::list <Operand *> operands_read ();
+        std::list <Operand *> operands ();
 
         const std::string queso   () const;
         const std::string smtlib2 () const;
@@ -250,9 +253,9 @@ class InstructionIte : public Instruction {
         const Operand  * g_t ()         const { return t; }
         const Operand  * g_e ()         const { return e; }
 
-        const Operand * operand_written () const  { return dst; }
-        const std::list <Operand *> operands_read () const ;
-        const std::list <Operand *> operands () const ;
+        Operand * operand_written () { return dst; }
+        std::list <Operand *> operands_read ();
+        std::list <Operand *> operands ();
 
         const std::string queso   () const;
         const std::string smtlib2 () const;
@@ -272,9 +275,9 @@ class InstructionSignExtend : public Instruction {
         const Variable * g_dst () const { return dst; }
         const Operand  * g_src () const { return src; }
 
-        const Operand * operand_written () const  { return dst; }
-        const std::list <Operand *> operands_read () const ;
-        const std::list <Operand *> operands () const ;
+        Operand * operand_written () { return dst; }
+        std::list <Operand *> operands_read ();
+        std::list <Operand *> operands ();
 
         const std::string queso   () const;
         const std::string smtlib2 () const;
@@ -306,9 +309,9 @@ class InstructionArithmetic : public Instruction {
         const Operand  * g_lhs () const { return lhs; }
         const Operand  * g_rhs () const { return rhs; }
 
-        const Operand * operand_written () const { return dst; }
-        const std::list <Operand *> operands_read () const ;
-        const std::list <Operand *> operands () const ;
+        Operand * operand_written () { return dst; }
+        std::list <Operand *> operands_read ();
+        std::list <Operand *> operands ();
 
         const std::string queso   () const;
         const std::string smtlib2 () const;
@@ -438,9 +441,9 @@ class InstructionCmp : public Instruction {
         const Operand *  g_lhs () const { return lhs; }
         const Operand *  g_rhs () const { return rhs; }
 
-        const Operand * operand_written () const { return dst; }
-        const std::list <Operand *> operands_read () const ;
-        const std::list <Operand *> operands () const ;
+        Operand * operand_written () { return dst; }
+        std::list <Operand *> operands_read ();
+        std::list <Operand *> operands ();
 
         const std::string queso   () const;
         const std::string smtlib2 () const;
