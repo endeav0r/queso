@@ -35,6 +35,7 @@ int lqueso_instruction_queso              (lua_State * L);
 int lqueso_instruction_depth_instructions (lua_State * L);
 int lqueso_instruction_opcode             (lua_State * L);
 int lqueso_instruction_g_pc               (lua_State * L);
+int lqueso_instruction_g_vIndex           (lua_State * L);
 
 MachineVariable * lqueso_machineVariable_check (lua_State * L, int position);
 int lqueso_machineVariable_push  (lua_State * L, MachineVariable * machineVariable);
@@ -54,10 +55,13 @@ int lqueso_machine_g_memoryModel     (lua_State * L);
 int lqueso_machine_concreteExecution (lua_State * L);
 
 QuesoGraph * lqueso_quesoGraph_check (lua_State * L, int position);
-int lqueso_quesoGraph_absorb     (lua_State * L, QuesoGraph * quesoGraph);
-int lqueso_quesoGraph_gc         (lua_State * L);
-int lqueso_quesoGraph_dotGraph   (lua_State * L);
-int lqueso_quesoGraph_g_vertices (lua_State * L);
+int lqueso_quesoGraph_absorb              (lua_State * L, QuesoGraph * quesoGraph);
+int lqueso_quesoGraph_gc                  (lua_State * L);
+int lqueso_quesoGraph_dotGraph            (lua_State * L);
+int lqueso_quesoGraph_g_vertices          (lua_State * L);
+int lqueso_quesoGraph_ssa                 (lua_State * L);
+int lqueso_quesoGraph_smtlib2Declarations (lua_State * L);
+int lqueso_quesoGraph_smtlib2             (lua_State * L);
 
 MemoryModel * lqueso_memoryModel_check (lua_State * L, int position);
 int lqueso_memoryModel_push   (lua_State * L, MemoryModel * memoryModel);

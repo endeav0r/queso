@@ -46,6 +46,11 @@ class QuesoGraph : public Graph {
         const QuesoEdge *   absorbQuesoEdge   (QuesoEdge * quesoEdge);
 
         std::string dotGraph ();
+
+        Instruction * g_vertex (uint64_t vIndex);
+
+        std::string smtlib2Declarations ();
+        std::string smtlib2 ();
 };
 
 

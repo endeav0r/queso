@@ -28,14 +28,16 @@ void InstructionLoadLE16 :: init () {
     Variable tmpAddress(address->g_bits(), "tmpAddress");
     Constant one(32, 1);
     Variable load8l(8, "load8l");
-    Constant eight(dst->g_bits(), 8);
+    Variable load16(16, "load16");
+    Constant eight(16, 8);
 
     push_depth_instruction(new InstructionLoad(&load8l, memory, address));
     push_depth_instruction(new InstructionAdd(&tmpAddress, address, &one));
     push_depth_instruction(new InstructionLoad(&load8h, memory, &tmpAddress));
-    push_depth_instruction(new InstructionOr(dst, dst, &load8h));
-    push_depth_instruction(new InstructionShl(dst, dst, &eight));
     push_depth_instruction(new InstructionAssign(dst, &load8l));
+    push_depth_instruction(new InstructionAssign(&load16, &load8h));
+    push_depth_instruction(new InstructionShl(&load16, &load16, &eight));
+    push_depth_instruction(new InstructionOr(dst, dst, &load16));
 }
 
 
@@ -92,6 +94,7 @@ void InstructionLoadLE32 :: init () {
     Variable load8_1(8, "load8_1");
     Variable load8_2(8, "load8_2");
     Variable load8_3(8, "load8_3");
+    Variable load32(32, "load32");
 
     Variable tmpAddress(address->g_bits(), "tmpAddress");
     Constant one(address->g_bits(), 1);
@@ -111,11 +114,18 @@ void InstructionLoadLE32 :: init () {
 
     push_depth_instruction(new InstructionAssign(dst, &load8_3));
     push_depth_instruction(new InstructionShl(dst, dst, &eight));
-    push_depth_instruction(new InstructionOr(dst, dst, &load8_2));
+
+    push_depth_instruction(new InstructionAssign(&load32, &load8_2));
+    push_depth_instruction(new InstructionOr(dst, dst, &load32));
     push_depth_instruction(new InstructionShl(dst, dst, &eight));
-    push_depth_instruction(new InstructionOr(dst, dst, &load8_1));
+
+
+    push_depth_instruction(new InstructionAssign(&load32, &load8_1));
+    push_depth_instruction(new InstructionOr(dst, dst, &load32));
     push_depth_instruction(new InstructionShl(dst, dst, &eight));
-    push_depth_instruction(new InstructionOr(dst, dst, &load8_0));
+
+    push_depth_instruction(new InstructionAssign(&load32, &load8_0));
+    push_depth_instruction(new InstructionOr(dst, dst, &load32));
 }
 
 

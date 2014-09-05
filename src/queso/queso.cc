@@ -241,6 +241,48 @@ std::list <Instruction *> Instruction :: flatten () {
 }
 
 
+void Instruction :: depthSmtlib2Declarations (std::stringstream & ss) {
+    std::list <Operand *> operands_ = operands();
+    std::list <Operand *> :: iterator oit;
+    for (oit = operands_.begin(); oit != operands_.end(); oit++) {
+        ss << (*oit)->smtlib2_declaration() << std::endl;
+    }
+
+    std::list <Instruction *> :: iterator it;
+    for (it = depth_instructions.begin(); it != depth_instructions.end(); it++) {
+        (*it)->depthSmtlib2Declarations(ss);
+    }
+}
+
+
+std::string Instruction :: depthSmtlib2Declarations () {
+    std::stringstream ss;
+
+    depthSmtlib2Declarations(ss);
+
+    return ss.str();
+}
+
+
+void Instruction :: depthSmtlib2 (std::stringstream & ss) {
+    ss << smtlib2() << std::endl;
+
+    std::list <Instruction *> :: iterator it;
+    for (it = depth_instructions.begin(); it != depth_instructions.end(); it++) {
+        (*it)->depthSmtlib2(ss);
+    }
+}
+
+
+std::string Instruction :: depthSmtlib2 () {
+    std::stringstream ss;
+
+    depthSmtlib2(ss);
+
+    return ss.str();
+}
+
+
 /*********************************************
 * Instruction : InstructionAssign
 **********************************************/
@@ -517,7 +559,7 @@ const std::string InstructionSignExtend :: smtlib2 () const {
     std::stringstream ss;
 
     ss << "(assert (= " << dst->smtlib2() << " ((_ sign_extend "
-       << dst->g_bits() << ") " << src->smtlib2() << ")))";
+       << (dst->g_bits() - src->g_bits()) << ") " << src->smtlib2() << ")))";
 
     return ss.str();
 }

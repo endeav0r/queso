@@ -2,6 +2,8 @@
 
 #include "disassembler/x86Disassembler.h"
 #include "translators/x86queso.h"
+#include "queso/spicyQueso.h"
+
 #include "luint64.h"
 
 #include <memory>
@@ -31,6 +33,7 @@ static const struct luaL_Reg lqueso_instruction_m [] = {
     {"opcode",             lqueso_instruction_opcode},
     {"queso",              lqueso_instruction_queso},
     {"g_pc",               lqueso_instruction_g_pc},
+    {"g_vIndex",           lqueso_instruction_g_vIndex},
     {NULL, NULL}
 };
 
@@ -54,9 +57,12 @@ static const struct luaL_Reg lqueso_machine_m [] = {
 };
 
 static const struct luaL_Reg lqueso_quesoGraph_m [] = {
-    {"__gc",       lqueso_quesoGraph_gc},
-    {"dotGraph",   lqueso_quesoGraph_dotGraph},
-    {"g_vertices", lqueso_quesoGraph_g_vertices},
+    {"__gc",                lqueso_quesoGraph_gc},
+    {"dotGraph",            lqueso_quesoGraph_dotGraph},
+    {"g_vertices",          lqueso_quesoGraph_g_vertices},
+    {"ssa",                 lqueso_quesoGraph_ssa},
+    {"smtlib2Declarations", lqueso_quesoGraph_smtlib2Declarations},
+    {"smtlib2",             lqueso_quesoGraph_smtlib2},
     {NULL, NULL}
 };
 
@@ -195,7 +201,7 @@ int lqueso_instruction_gc (lua_State * L) {
     #endif
 
     lua_getuservalue(L, -1);
-    if (lua_isnil(L, -1)) {
+    if (lua_isnil(L, -1) == 0) {
         lua_pop(L, 2);
         return 0;
     }
@@ -257,6 +263,16 @@ int lqueso_instruction_g_pc (lua_State * L) {
     lua_pop(L, 1);
 
     luint64_push(L, instruction->g_pc());
+    return 1;
+}
+
+
+int lqueso_instruction_g_vIndex (lua_State * L) {
+    Instruction * instruction = lqueso_instruction_check(L, -1);
+    lua_pop(L, 1);
+
+    luint64_push(L, instruction->g_vIndex());
+
     return 1;
 }
 
@@ -528,6 +544,44 @@ int lqueso_quesoGraph_g_vertices (lua_State * L) {
         lua_setuservalue(L, -2);
         lua_settable(L, -3);
     }
+
+    return 1;
+}
+
+
+int lqueso_quesoGraph_ssa (lua_State * L) {
+    QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, 1);
+    uint64_t entry_vId = luint64_check(L, 2);
+
+    SpicyQueso::ssa(quesoGraph, entry_vId);
+
+    lua_pop(L, 2);
+
+    return 0;
+}
+
+
+int lqueso_quesoGraph_smtlib2Declarations (lua_State * L) {
+    QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, 1);
+
+    std::string smtlib2Declarations = quesoGraph->smtlib2Declarations();
+
+    lua_pop(L, 1);
+
+    lua_pushstring(L, smtlib2Declarations.c_str());
+
+    return 1;
+}
+
+
+int lqueso_quesoGraph_smtlib2 (lua_State * L) {
+    QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, 1);
+
+    std::string smtlib2 = quesoGraph->smtlib2();
+
+    lua_pop(L, 1);
+
+    lua_pushstring(L, smtlib2.c_str());
 
     return 1;
 }

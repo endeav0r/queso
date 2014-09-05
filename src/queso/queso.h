@@ -116,6 +116,9 @@ class Instruction : public GraphVertex {
 
         void var_dominators (std::list <std::string> & dominator_variables,
                              std::list <Instruction *> & dominator_instructions);
+
+        void depthSmtlib2Declarations (std::stringstream & ss);
+        void depthSmtlib2             (std::stringstream & ss);
     protected :
         void copy_depth_instructions (const Instruction * srcInstruction);
     public :
@@ -154,6 +157,9 @@ class Instruction : public GraphVertex {
         virtual const std::string queso   () const = 0;
 
         virtual Instruction * copy () const = 0;
+
+        std::string depthSmtlib2Declarations ();
+        std::string depthSmtlib2 ();
 };
 
 class InstructionAssign : public Instruction {
@@ -462,9 +468,9 @@ class InstructionCmpEq : public InstructionCmp {
 class InstructionCmpLtu : public InstructionCmp {
     public :
         InstructionCmpLtu (const Variable & dst, const Operand & lhs, const Operand & rhs)
-            : InstructionCmp (CMPLTU, "bvlt", dst, lhs, rhs) {}
+            : InstructionCmp (CMPLTU, "bvult", dst, lhs, rhs) {}
         InstructionCmpLtu (const Variable * dst, const Operand * lhs, const Operand * rhs)
-            : InstructionCmp (CMPLTU, "bvlt", dst, lhs, rhs) {}
+            : InstructionCmp (CMPLTU, "bvult", dst, lhs, rhs) {}
 
         InstructionCmpLtu * copy () const { return new InstructionCmpLtu(dst, lhs, rhs); }
 };
@@ -472,9 +478,9 @@ class InstructionCmpLtu : public InstructionCmp {
 class InstructionCmpLeu : public InstructionCmp {
     public :
         InstructionCmpLeu (const Variable & dst, const Operand & lhs, const Operand & rhs)
-            : InstructionCmp (CMPLEU, "bvle", dst, lhs, rhs) {}
+            : InstructionCmp (CMPLEU, "bvule", dst, lhs, rhs) {}
         InstructionCmpLeu (const Variable * dst, const Operand * lhs, const Operand * rhs)
-            : InstructionCmp (CMPLEU, "bvle", dst, lhs, rhs) {}
+            : InstructionCmp (CMPLEU, "bvule", dst, lhs, rhs) {}
 
         InstructionCmpLeu * copy () const { return new InstructionCmpLeu(dst, lhs, rhs); }
 };
@@ -482,9 +488,9 @@ class InstructionCmpLeu : public InstructionCmp {
 class InstructionCmpLts : public InstructionCmp {
     public :
         InstructionCmpLts (const Variable & dst, const Operand & lhs, const Operand & rhs)
-            : InstructionCmp (CMPLTS, "sbvlt", dst, lhs, rhs) {}
+            : InstructionCmp (CMPLTS, "bvslt", dst, lhs, rhs) {}
         InstructionCmpLts (const Variable * dst, const Operand * lhs, const Operand * rhs)
-            : InstructionCmp (CMPLTS, "sbvlt", dst, lhs, rhs) {}
+            : InstructionCmp (CMPLTS, "bvslt", dst, lhs, rhs) {}
 
         InstructionCmpLts * copy () const { return new InstructionCmpLts(dst, lhs, rhs); }
 };
@@ -492,9 +498,9 @@ class InstructionCmpLts : public InstructionCmp {
 class InstructionCmpLes : public InstructionCmp {
     public :
         InstructionCmpLes (const Variable & dst, const Operand & lhs, const Operand & rhs)
-            : InstructionCmp (CMPLES, "sbvle", dst, lhs, rhs) {}
+            : InstructionCmp (CMPLES, "bvsle", dst, lhs, rhs) {}
         InstructionCmpLes (const Variable * dst, const Operand * lhs, const Operand * rhs)
-            : InstructionCmp (CMPLES, "sbvle", dst, lhs, rhs) {}
+            : InstructionCmp (CMPLES, "bvsle", dst, lhs, rhs) {}
 
         InstructionCmpLes * copy () const { return new InstructionCmpLes(dst, lhs, rhs); }
 };

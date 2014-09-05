@@ -914,10 +914,17 @@ bool QuesoX86 :: sub () {
     Variable SF(1, "SF");
     Constant zero(lhs->g_bits(), 0);
 
-    ix86->pdi(new InstructionSub(&tmp, lhs, rhs));
+    if (rhs->g_bits() < lhs->g_bits()) {
+        ix86->pdi(new InstructionSignExtend(&tmp, rhs));
+        ix86->pdi(new InstructionSub(&tmp, lhs, &tmp));
+    }
+    else
+        ix86->pdi(new InstructionSub(&tmp, lhs, rhs));
 
     ix86->pdi(new InstructionXor(&OFTmp, &tmp, lhs));
-    ix86->pdi(new InstructionShr(&OF, &OFTmp, &OFTmpShr));
+    ix86->pdi(new InstructionShr(&OFTmp, &OFTmp, &OFTmpShr));
+    ix86->pdi(new InstructionAssign(&OF, &OFTmp));
+//    ix86->pdi(new InstructionShr(&OF, &OFTmp, &OFTmpShr));
     ix86->pdi(new InstructionCmpLtu(&CF, lhs, &tmp));
     ix86->pdi(new InstructionCmpEq(&ZF, &tmp, &zero));
     ix86->pdi(new InstructionCmpLts(&SF, &tmp, &zero));

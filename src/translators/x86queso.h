@@ -52,6 +52,14 @@ class InstructionX86 : public Instruction {
             newIns->copy_depth_instructions(this);
             return newIns;
         }
+
+        const std::string smtlib2 () const {
+            char tmp[128];
+            snprintf(tmp, 128, "; %llx %s",
+                     (unsigned long long) g_pc(),
+                     text.c_str());
+            return tmp;
+        }
 };
 
 class QuesoX86 : public Translator {
