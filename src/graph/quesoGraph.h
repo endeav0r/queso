@@ -43,6 +43,7 @@ class QuesoEdge : public GraphEdge {
 class QuesoGraph : public Graph {
     public :
         const Instruction * absorbInstruction (Instruction * Instruction);
+        const Instruction * absorbInstruction (Instruction * Instruction, uint64_t vIndex);
         const QuesoEdge *   absorbQuesoEdge   (QuesoEdge * quesoEdge);
 
         std::string dotGraph ();
@@ -51,6 +52,12 @@ class QuesoGraph : public Graph {
 
         std::string smtlib2Declarations ();
         std::string smtlib2 ();
+
+        // returns NULL if operand could not be found by name & SSA
+        QuesoGraph * sliceForward  (Operand * operand);
+
+        // returns NULL if operand could not be found by name & SSA
+        QuesoGraph * sliceBackward (Operand * operand);
 };
 
 

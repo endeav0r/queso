@@ -34,6 +34,8 @@ enum QuesoOpcode {
 
 extern const char * QuesoOpcodeStrings [];
 
+extern std::string operandEmptyString;
+
 class Operand {
     protected :
         unsigned int bits;
@@ -46,6 +48,8 @@ class Operand {
         unsigned int g_bits () const { return bits; }
         uint64_t g_ssa  () const { return ssa; }
         void s_ssa (uint64_t ssa) { this->ssa = ssa; }
+
+        virtual const std::string & g_name () const { return operandEmptyString; }
 
         virtual std::string smtlib2             () const = 0;
         virtual std::string smtlib2_declaration () const = 0;

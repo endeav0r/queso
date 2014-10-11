@@ -24,8 +24,9 @@ extern "C" {
 
 LUALIB_API int luaopen_lqueso (lua_State * L);
 
-int lqueso_x86translate   (lua_State * L);
-int lqueso_x86disassemble (lua_State * L);
+int lqueso_x86translate    (lua_State * L);
+int lqueso_x86disassemble  (lua_State * L);
+int lqueso_x86acyclicDepth (lua_State * L);
 
 Instruction * lqueso_instruction_check (lua_State * L, int position);
 int lqueso_instruction_push               (lua_State * L, Instruction * instruction);
@@ -36,6 +37,15 @@ int lqueso_instruction_depth_instructions (lua_State * L);
 int lqueso_instruction_opcode             (lua_State * L);
 int lqueso_instruction_g_pc               (lua_State * L);
 int lqueso_instruction_g_vIndex           (lua_State * L);
+int lqueso_instruction_flatten            (lua_State * L);
+
+Operand * lqueso_operand_check (lua_State * L, int position);
+int lqueso_operand_push    (lua_State * L, Operand * operand);
+int lqueso_operand_gc      (lua_State * L);
+int lqueso_operand_type    (lua_State * L);
+int lqueso_operand_name    (lua_State * L);
+int lqueso_operand_ssa     (lua_State * L);
+int lqueso_operand_smtlib2 (lua_State * L);
 
 MachineVariable * lqueso_machineVariable_check (lua_State * L, int position);
 int lqueso_machineVariable_push  (lua_State * L, MachineVariable * machineVariable);

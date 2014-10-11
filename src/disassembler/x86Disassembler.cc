@@ -127,7 +127,7 @@ QuesoGraph * X86Disassembler :: disassemble (uint64_t entry,
 
         ix86 = ix86->copy();
 
-        quesoGraph->absorbInstruction(ix86);
+        quesoGraph->absorbInstruction(ix86, ix86->g_pc());
 
         if (next.has_predecessor)
             quesoGraph->absorbQuesoEdge(new QuesoEdge(quesoGraph,
@@ -144,8 +144,68 @@ QuesoGraph * X86Disassembler :: disassemble (uint64_t entry,
                 queued.insert(successor_address);
                 queue.push(X86DisassemblerNext(ix86->g_vIndex(), successor_address));
             }
+            else {
+                quesoGraph->absorbEdge(new QuesoEdge(quesoGraph,
+                                                     ix86->g_vIndex(),
+                                                     successor_address,
+                                                     CFT_NORMAL));
+            }
         }
 
+    }
+
+    return quesoGraph;
+}
+
+
+QuesoGraph * X86Disassembler :: acyclicDepth (uint64_t entry,
+                                              const MemoryModel * memoryModel,
+                                              uint64_t depth) {
+    std::queue <InstructionX86 *> queue;
+    QuesoGraph * quesoGraph = new QuesoGraph();
+    QuesoX86 quesoX86;
+
+    // disassemble the first instruction, prime the queue
+    MemoryBuffer memoryBuffer = memoryModel->g_bytes(entry, 16);
+    InstructionX86 * ix86 = quesoX86.translate(memoryBuffer.g_data(),
+                                               memoryBuffer.g_size(),
+                                               entry);
+    ix86 = ix86->copy();
+    quesoGraph->absorbInstruction(ix86);
+    queue.push(ix86);
+
+    for (uint64_t i = 0; i < depth; i++) {
+        std::queue <InstructionX86 *> newQueue = std::queue <InstructionX86 *>();
+
+        // for every instruction at this depth
+        while (queue.size() > 0) {
+            InstructionX86 * ix86 = queue.front();
+            queue.pop();
+
+            // get all successors for this instruction
+            std::list <uint64_t> successors = evalEip(ix86);
+            std::list <uint64_t> :: iterator it;
+            for (it = successors.begin(); it != successors.end(); it++) {
+                uint64_t address = *it;
+                // disassemble each instruction
+                MemoryBuffer memoryBuffer = memoryModel->g_bytes(address, 16);
+                InstructionX86 * nextIx86 = quesoX86.translate(memoryBuffer.g_data(),
+                                                               memoryBuffer.g_size(),
+                                                               address);
+                nextIx86 = nextIx86->copy();
+
+                // add to graph and create the edge
+                quesoGraph->absorbInstruction(nextIx86);
+                quesoGraph->absorbEdge(new QuesoEdge(quesoGraph,
+                                                     ix86->g_vIndex(),
+                                                     nextIx86->g_vIndex(),
+                                                     CFT_NORMAL));
+
+                // add this instruction to the new queue
+                newQueue.push(nextIx86);
+            }
+        }
+        queue = newQueue;
     }
 
     return quesoGraph;

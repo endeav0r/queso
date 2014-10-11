@@ -12,7 +12,12 @@ class X86Disassembler : public Disassembler {
 
     public :
         static QuesoGraph * disassemble (uint64_t entry,
-               			                 const MemoryModel * memoryModel);
+                                         const MemoryModel * memoryModel);
+
+        // disassembles to an acyclic graph for graph exploration
+        static QuesoGraph * acyclicDepth (uint64_t entry,
+                                          const MemoryModel * memoryModel,
+                                          uint64_t depth);
 };
 
 #endif

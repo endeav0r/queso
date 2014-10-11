@@ -167,7 +167,6 @@ class SQSSAGraph {
 
 
 void SpicyQueso :: ssa (QuesoGraph * quesoGraph, uint64_t entry_vId) {
-    printf("SpicyQueso::ssa entry_vId=%x\n", entry_vId);
     std::map   <std::string, uint64_t> writeCounts;
     std::set   <uint64_t>   touched;
     std::queue <SQSSAGraph> queue;
@@ -179,11 +178,12 @@ void SpicyQueso :: ssa (QuesoGraph * quesoGraph, uint64_t entry_vId) {
     while (queue.size() > 0) {
         SQSSAGraph & sqssaGraph = queue.front();
 
+        /*
         printf("SpicyQueso::ssa loop %x %llx %s\n",
                sqssaGraph.instruction->g_vIndex(),
                (unsigned long long) sqssaGraph.instruction->g_pc(),
                sqssaGraph.instruction->queso().c_str());
-
+        */
         sqssaGraph.ssa();
 
         std::list <GraphEdge *> successors = sqssaGraph.instruction->g_successors();
@@ -191,11 +191,6 @@ void SpicyQueso :: ssa (QuesoGraph * quesoGraph, uint64_t entry_vId) {
         for (it = successors.begin(); it != successors.end(); it++) {
             QuesoEdge * quesoEdge = dynamic_cast<QuesoEdge *>(*it);
             Instruction * tail = quesoEdge->g_tail();
-
-            printf("SpiceQueso::ssa tail %x %llx %s\n",
-                   tail->g_vIndex(),
-                   (unsigned long long) tail->g_pc(),
-                   tail->queso().c_str());
 
             if (touched.count(tail->g_vIndex()) == 0) {
                 touched.insert(tail->g_vIndex());

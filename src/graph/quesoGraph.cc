@@ -13,6 +13,12 @@ const Instruction * QuesoGraph :: absorbInstruction (Instruction * instruction) 
 }
 
 
+const Instruction * QuesoGraph :: absorbInstruction (Instruction * instruction,
+                                                     uint64_t vIndex) {
+    return dynamic_cast<const Instruction *>(absorbVertex(instruction, vIndex));
+}
+
+
 const QuesoEdge * QuesoGraph :: absorbQuesoEdge (QuesoEdge * quesoEdge) {
     return dynamic_cast<const QuesoEdge *>(absorbEdge(quesoEdge));
 }
@@ -124,4 +130,111 @@ std::string QuesoGraph :: smtlib2 () {
     }
 
     return ss.str();
+}
+
+
+class QuesoGraphSlice {
+    public :
+        Instruction * predecessor;
+        Instruction * successor;
+        QuesoGraphSlice (Instruction * predecessor, Instruction * successor)
+            : predecessor (predecessor), successor (successor) {}
+};
+
+
+QuesoGraph * QuesoGraph :: sliceBackward (Operand * operand) {
+    Instruction * startInstruction = NULL;
+    std::set <std::string> dominators;
+
+    // first, let's find where this operand is set
+    // for all instructions in the graph
+    std::map <uint64_t, GraphVertex *> :: iterator graphIt;
+    for (graphIt = g_vertices().begin(); graphIt != g_vertices().end(); graphIt++) {
+        Instruction * instruction = dynamic_cast<Instruction *>(graphIt->second);
+
+        // flatten the instruction
+        std::list <Instruction *> flattened = instruction->flatten();
+        std::list <Instruction *> :: iterator it;
+        for (it = flattened.begin(); it != flattened.end(); it++) {
+            Instruction * ins = *it;
+
+            // if this operand is set in this instruction
+            if (    (operand->g_name() == ins->operand_written()->g_name())
+                 && (operand->g_ssa() == ins->operand_written()->g_ssa())) {
+                startInstruction = instruction;
+
+                std::list <Operand *> operands_read = ins->operands_read();
+                std::list <Operand *> :: iterator opIt;
+                for (opIt = operands_read.begin(); opIt != operands_read.end(); opIt++) {
+                    dominators.insert((*opIt)->queso());
+                }
+
+                graphIt = g_vertices().end();
+                break;
+             }
+        }
+    }
+
+    if (startInstruction == NULL)
+        return NULL;
+
+    QuesoGraph * quesoGraph = new QuesoGraph();
+
+    // now we will construct a graph containing all instructions from predecessor
+    // instructions that contain dominators of this operand
+    std::set <Instruction *> touched;
+    std::queue <QuesoGraphSlice> queue;
+
+    queue.push(QuesoGraphSlice(startInstruction, NULL));
+
+    while (queue.size() != 0) {
+        QuesoGraphSlice & quesoGraphSlice = queue.front();
+        Instruction * instruction = quesoGraphSlice.predecessor;
+        Instruction * sliceSuccessor = quesoGraphSlice.successor;
+        queue.pop();
+
+        // important for cyclic graphs
+        if (touched.count(instruction) > 0)
+            continue;
+        touched.insert(instruction);
+
+        bool isDominatorInstruction = false;
+        std::list <Instruction *> flattened = instruction->flatten();
+        flattened.reverse();
+        std::list <Instruction *> :: iterator fIt;
+        for (fIt = flattened.begin(); fIt != flattened.end(); fIt++) {
+            if (dominators.count((*fIt)->operand_written()->queso()) > 0) {
+                isDominatorInstruction = true;
+
+                std::list <Operand *> operands_read = (*fIt)->operands_read();
+                std::list <Operand *> :: iterator opIt;
+                for (opIt = operands_read.begin(); opIt != operands_read.end(); opIt++) {
+                    dominators.insert((*opIt)->queso());
+                }
+            }
+        }
+
+        // if this was a dominator instruction, insert it into the graph
+        if (isDominatorInstruction) {
+            Instruction * newSuccessor = instruction->copy();
+            quesoGraph->absorbInstruction(newSuccessor);
+
+            if (sliceSuccessor != NULL)
+                quesoGraph->absorbQuesoEdge(new QuesoEdge(quesoGraph,
+                                                          newSuccessor->g_vIndex(),
+                                                          sliceSuccessor->g_vIndex(),
+                                                          CFT_NORMAL));
+            sliceSuccessor = newSuccessor;
+        }
+
+        // insert predecessors for search
+        std::list <GraphEdge *> predecessors = instruction->g_predecessors();
+        std::list <GraphEdge *> :: iterator pIt;
+        for (pIt = predecessors.begin(); pIt != predecessors.end(); pIt++) {
+            QuesoEdge * quesoEdge = dynamic_cast<QuesoEdge *>(*pIt);
+            queue.push(QuesoGraphSlice(quesoEdge->g_head(), sliceSuccessor));
+        }
+    }
+
+    return quesoGraph;
 }

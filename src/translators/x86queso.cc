@@ -376,6 +376,13 @@ bool QuesoX86 :: add () {
     Variable CF = Variable(1, "CF");
     Variable ZF = Variable(1, "ZF");
 
+    if (rhs->g_bits() < lhs->g_bits()) {
+        Variable * newRhs = new Variable(lhs->g_bits(), "rhsSext");
+        ix86->pdi(new InstructionSignExtend(newRhs, rhs));
+        delete rhs;
+        rhs = newRhs;
+    }
+    
     ix86->pdi(new InstructionAdd(&tmp, lhs, rhs));
     ix86->pdi(new InstructionCmpLtu(&CF, &tmp, lhs));
     ix86->pdi(new InstructionCmpEq(&ZF, &tmp, &zero));

@@ -29,6 +29,8 @@ const char * QuesoOpcodeStrings [] = {
     "USER"
 };
 
+std::string operandEmptyString("");
+
 /*********************************************
 * Operand : Variable
 **********************************************/
