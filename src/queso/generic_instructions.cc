@@ -90,6 +90,7 @@ InstructionLoadLE32 :: ~InstructionLoadLE32 () {
 
 
 void InstructionLoadLE32 :: init () {
+    /*
     Variable load8_0(8, "load8_0");
     Variable load8_1(8, "load8_1");
     Variable load8_2(8, "load8_2");
@@ -126,6 +127,24 @@ void InstructionLoadLE32 :: init () {
 
     push_depth_instruction(new InstructionAssign(&load32, &load8_0));
     push_depth_instruction(new InstructionOr(dst, dst, &load32));
+    */
+}
+
+
+std::list <Operand *> InstructionLoadLE32 :: operands_read () {
+    std::list <Operand *> operands;
+    operands.push_back(memory);
+    operands.push_back(address);
+    return operands;
+}
+
+
+std::list <Operand *> InstructionLoadLE32 :: operands () {
+    std::list <Operand *> operands;
+    operands.push_back(dst);
+    operands.push_back(memory);
+    operands.push_back(address);
+    return operands;
 }
 
 
@@ -139,6 +158,18 @@ const std::string InstructionLoadLE32 :: queso () const {
 
 InstructionLoadLE32 * InstructionLoadLE32 :: copy () const {
     return new InstructionLoadLE32(dst, memory, address);
+}
+
+
+const std::string InstructionLoadLE32 :: smtlib2 () const {
+    std::stringstream ss;
+    ss << "(assert (= " << dst->smtlib2() << " "
+       << "(concat "
+       << "(select " << memory->smtlib2() << " (bvadd " << address->smtlib2() << " #x00000003)) "
+       << "(select " << memory->smtlib2() << " (bvadd " << address->smtlib2() << " #x00000002)) "
+       << "(select " << memory->smtlib2() << " (bvadd " << address->smtlib2() << " #x00000001)) "
+       << "(select " << memory->smtlib2() << " " << address->smtlib2() << "))))";
+    return ss.str();
 }
 
 

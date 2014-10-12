@@ -55,6 +55,9 @@ class QuesoGraph : public Graph {
 
         // returns NULL if operand could not be found by name & SSA
         QuesoGraph * slice_backward (Operand * operand);
+
+        // same as slice_backward, but only returns minimum instructions necessary
+        QuesoGraph * slice_backward_thin (Operand * operand);
 };
 
 

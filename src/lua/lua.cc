@@ -78,6 +78,7 @@ static const struct luaL_Reg lqueso_quesoGraph_m [] = {
     {"smtlib2Declarations", lqueso_quesoGraph_smtlib2Declarations},
     {"smtlib2",             lqueso_quesoGraph_smtlib2},
     {"slice_backward",      lqueso_quesoGraph_slice_backward},
+    {"slice_backward_thin", lqueso_quesoGraph_slice_backward_thin},
     {NULL, NULL}
 };
 
@@ -775,6 +776,23 @@ int lqueso_quesoGraph_slice_backward (lua_State * L) {
     Operand * operand = lqueso_operand_check(L, 2);
 
     QuesoGraph * result = quesoGraph->slice_backward(operand);
+
+    lua_pop(L, 2);
+
+    if (result == NULL)
+        lua_pushnil(L);
+    else
+        lqueso_quesoGraph_absorb(L, result);
+
+    return 1;
+}
+
+
+int lqueso_quesoGraph_slice_backward_thin (lua_State * L) {
+    QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, 1);
+    Operand * operand = lqueso_operand_check(L, 2);
+
+    QuesoGraph * result = quesoGraph->slice_backward_thin(operand);
 
     lua_pop(L, 2);
 

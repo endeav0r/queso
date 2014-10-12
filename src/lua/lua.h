@@ -75,6 +75,7 @@ int lqueso_quesoGraph_ssa                 (lua_State * L);
 int lqueso_quesoGraph_smtlib2Declarations (lua_State * L);
 int lqueso_quesoGraph_smtlib2             (lua_State * L);
 int lqueso_quesoGraph_slice_backward      (lua_State * L);
+int lqueso_quesoGraph_slice_backward_thin (lua_State * L);
 
 MemoryModel * lqueso_memoryModel_check (lua_State * L, int position);
 int lqueso_memoryModel_push   (lua_State * L, MemoryModel * memoryModel);

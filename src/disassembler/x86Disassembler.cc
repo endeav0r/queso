@@ -2,6 +2,8 @@
 
 #include "machine/machine.h"
 
+#include "queso/generic_instructions.h"
+
 #include <iostream>
 #include <queue>
 #include <set>
@@ -30,7 +32,8 @@ std::list <uint64_t> X86Disassembler :: evalEip (InstructionX86 * ix86) {
         Instruction * instruction = *it;
 
         // stop on a load instruction
-        if (dynamic_cast<const InstructionLoad *>(instruction))
+        if (    (dynamic_cast<const InstructionLoad *>(instruction))
+             || (dynamic_cast<const InstructionLoadLE32 *>(instruction)))
             return std::list <uint64_t> ();
 
         Machine & firstMachine = machines.front();
@@ -206,9 +209,11 @@ QuesoGraph * X86Disassembler :: acyclicDepth (uint64_t entry,
                     x86dis.callStack.pop();
                 }
             }
+
             std::list <uint64_t> :: iterator it;
             for (it = successors.begin(); it != successors.end(); it++) {
                 uint64_t address = *it;
+                printf("%llx\n", address);fflush(stdout);
                 // disassemble each instruction
                 MemoryBuffer memoryBuffer = memoryModel->g_bytes(address, 16);
                 InstructionX86 * nextIx86 = quesoX86.translate(memoryBuffer.g_data(),

@@ -46,9 +46,15 @@ class InstructionLoadLE32 : public Instruction {
 
         virtual ~InstructionLoadLE32 ();
 
+        Operand * operand_written () { return dst; }
+        std::list <Operand *> operands_read ();
+        std::list <Operand *> operands ();
+
         const std::string queso () const;
 
         InstructionLoadLE32 * copy () const;
+
+        const std::string smtlib2 () const;
 };
 
 class InstructionStoreLE16 : public Instruction {

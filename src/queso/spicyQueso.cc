@@ -184,6 +184,7 @@ void SpicyQueso :: ssa (QuesoGraph * quesoGraph, uint64_t entry_vId) {
                (unsigned long long) sqssaGraph.instruction->g_pc(),
                sqssaGraph.instruction->queso().c_str());
         */
+
         sqssaGraph.ssa();
 
         std::list <GraphEdge *> successors = sqssaGraph.instruction->g_successors();

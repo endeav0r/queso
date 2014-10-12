@@ -152,7 +152,8 @@ void Instruction :: var_dominators (std::list <std::string> & dominator_variable
                                     std::list <Instruction *> & dominator_instructions) {
 
     // if this is a queso variable
-    if (opcode != USER) {
+    //if (opcode != USER) {
+    if (true) {
         // get name of operand written by this instruction
         std::string var_name = "";
         if (Variable * variable = dynamic_cast<Variable *>(operand_written()))
@@ -196,14 +197,13 @@ void Instruction :: var_dominators (std::list <std::string> & dominator_variable
             }
         }
     }
-    else {
-        std::list <Instruction *> :: const_reverse_iterator it;
+    //else {
+        std::list <Instruction *> :: const_reverse_iterator rit;
         
-        for (it = depth_instructions.rbegin(); it != depth_instructions.rend(); it++) {
-            (*it)->var_dominators(dominator_variables, dominator_instructions);
+        for (rit = depth_instructions.rbegin(); rit != depth_instructions.rend(); rit++) {
+            (*rit)->var_dominators(dominator_variables, dominator_instructions);
         }
-        
-    }
+    //}
 }
 
 
