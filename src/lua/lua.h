@@ -38,6 +38,8 @@ int lqueso_instruction_opcode             (lua_State * L);
 int lqueso_instruction_g_pc               (lua_State * L);
 int lqueso_instruction_g_vIndex           (lua_State * L);
 int lqueso_instruction_flatten            (lua_State * L);
+int lqueso_instruction_operand_written    (lua_State * L);
+int lqueso_instruction_operands_read      (lua_State * L);
 
 Operand * lqueso_operand_check (lua_State * L, int position);
 int lqueso_operand_push    (lua_State * L, Operand * operand);
@@ -72,6 +74,7 @@ int lqueso_quesoGraph_g_vertices          (lua_State * L);
 int lqueso_quesoGraph_ssa                 (lua_State * L);
 int lqueso_quesoGraph_smtlib2Declarations (lua_State * L);
 int lqueso_quesoGraph_smtlib2             (lua_State * L);
+int lqueso_quesoGraph_slice_backward      (lua_State * L);
 
 MemoryModel * lqueso_memoryModel_check (lua_State * L, int position);
 int lqueso_memoryModel_push   (lua_State * L, MemoryModel * memoryModel);
@@ -85,6 +88,8 @@ int lqueso_elf32_gc          (lua_State * L);
 int lqueso_elf32_entry       (lua_State * L);
 int lqueso_elf32_memoryModel (lua_State * L);
 int lqueso_elf32_symbols     (lua_State * L);
+int lqueso_elf32_relocs      (lua_State * L);
+int lqueso_elf32_sections    (lua_State * L);
 
 }
 

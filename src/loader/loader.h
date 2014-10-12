@@ -8,7 +8,8 @@
 #include <string>
 
 enum LoaderSymbolType {
-    LST_FUNCTION
+    LST_FUNCTION,
+    LST_RELOC
 };
 
 class LoaderSymbol {

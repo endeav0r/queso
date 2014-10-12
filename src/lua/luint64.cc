@@ -19,6 +19,7 @@ static const struct luaL_Reg luint64_lib_m [] = {
     {"__le",       luint64_le},
     {"__tostring", luint64_tostring},
     {"string",     luint64_tostring},
+    {"__tonumber", luint64_number},
     {"number",     luint64_number},
     {NULL, NULL}
 };
@@ -27,6 +28,9 @@ LUALIB_API int luaopen_luint64 (lua_State * L)
 {
     luaL_newmetatable(L, "luint64.uint64_t");
     luaL_setfuncs    (L, luint64_lib_m, 0);
+    lua_pushstring(L, "__index");
+    lua_pushvalue(L, -2);
+    lua_settable(L, -3);
     /*
     luaL_newlib      (L, luint64_lib_m);
     lua_pushstring   (L, "__index");
@@ -202,7 +206,7 @@ int luint64_tostring (lua_State * L)
     char tmp[64];
 
     uint64_t value = luint64_check(L, -1);
-    lua_pop(L, -1);
+    lua_pop(L, 1);
 
     snprintf(tmp, 64, "0x%llx", (unsigned long long) value);
 
@@ -214,8 +218,8 @@ int luint64_tostring (lua_State * L)
 
 int luint64_number (lua_State * L)
 {
-    uint64_t value = luint64_check(L, -1);
-    lua_pop(L, -1);
+    uint64_t value = luint64_check(L, 1);
+    lua_pop(L, 1);
 
     lua_pushnumber(L, (lua_Number) value);
 

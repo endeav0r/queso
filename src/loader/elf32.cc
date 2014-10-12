@@ -125,6 +125,63 @@ std::list <LoaderSymbol> Elf32 :: symbols () {
 }
 
 
+std::list <LoaderSymbol> Elf32 :: relocs () {
+    std::list <LoaderSymbol> relocs;
+
+    for (unsigned int shdr_i = 0; shdr_i < _ehdr()->e_shnum; shdr_i++) {
+        const Elf32_Shdr * shdr = _shdr(shdr_i);
+        if (shdr == NULL)
+            break;
+
+        if (shdr->sh_type != SHT_REL)
+            continue;
+
+        const Elf32_Shdr * link = _shdr(shdr->sh_link);
+        if (link == NULL)
+            continue;
+
+        const Elf32_Shdr * strtab = _shdr(link->sh_link);
+        if (strtab == NULL)
+            continue;
+
+        for (unsigned int rel_i = 0; rel_i < shdr->sh_size / shdr->sh_entsize; rel_i++) {
+            const Elf32_Rel * rel = (Elf32_Rel *) _shdr_ent(shdr, rel_i);
+            if (rel == NULL)
+                break;
+
+            const Elf32_Sym * sym = (Elf32_Sym *) _shdr_ent (link, ELF32_R_SYM(rel->r_info));
+
+            relocs.push_back(LoaderSymbol((const char*) &(data[strtab->sh_offset + sym->st_name]),
+                                          rel->r_offset, LST_RELOC));
+        }
+    }
+
+    return relocs;
+}
+
+
+std::list <Elf32Section> Elf32 :: sections () {
+    std::list <Elf32Section> sections;
+
+    const Elf32_Shdr * strtab = _shdr(_ehdr()->e_shstrndx);
+
+    for (unsigned int shdr_i = 1; shdr_i < _ehdr()->e_shnum; shdr_i++) {
+        const Elf32_Shdr * shdr = _shdr(shdr_i);
+        if (shdr == NULL)
+            break;
+
+        std::string name = "";
+        if ((strtab != NULL) && (strtab->sh_offset + shdr->sh_name < size)) {
+            name = (char *) &(data[strtab->sh_offset + shdr->sh_name]);
+        }
+
+        sections.push_back(Elf32Section(name, shdr->sh_addr, shdr->sh_size));
+    }
+
+    return sections;
+}
+
+
 MemoryModel Elf32 :: memoryModel () {
     MemoryModel memoryModel;
 

@@ -142,7 +142,7 @@ class QuesoGraphSlice {
 };
 
 
-QuesoGraph * QuesoGraph :: sliceBackward (Operand * operand) {
+QuesoGraph * QuesoGraph :: slice_backward (Operand * operand) {
     Instruction * startInstruction = NULL;
     std::set <std::string> dominators;
 
@@ -158,6 +158,10 @@ QuesoGraph * QuesoGraph :: sliceBackward (Operand * operand) {
         for (it = flattened.begin(); it != flattened.end(); it++) {
             Instruction * ins = *it;
 
+            if (ins->operand_written() == NULL) {
+                continue;
+            }
+
             // if this operand is set in this instruction
             if (    (operand->g_name() == ins->operand_written()->g_name())
                  && (operand->g_ssa() == ins->operand_written()->g_ssa())) {
@@ -168,10 +172,12 @@ QuesoGraph * QuesoGraph :: sliceBackward (Operand * operand) {
                 for (opIt = operands_read.begin(); opIt != operands_read.end(); opIt++) {
                     dominators.insert((*opIt)->queso());
                 }
+                dominators.insert(operand->queso());
 
                 graphIt = g_vertices().end();
+                graphIt--;
                 break;
-             }
+            }
         }
     }
 
@@ -203,6 +209,8 @@ QuesoGraph * QuesoGraph :: sliceBackward (Operand * operand) {
         flattened.reverse();
         std::list <Instruction *> :: iterator fIt;
         for (fIt = flattened.begin(); fIt != flattened.end(); fIt++) {
+            if ((*fIt)->operand_written() == NULL)
+                continue;
             if (dominators.count((*fIt)->operand_written()->queso()) > 0) {
                 isDominatorInstruction = true;
 

@@ -37,8 +37,9 @@ class MemoryModel {
         }
 
         MemoryBuffer g_bytes (uint64_t address, size_t size) const;
-
         uint8_t g_byte (uint64_t address) { return memory[address]; }
+
+        uint64_t search (unsigned char * buf, size_t size);
 
         MemoryModel * copy ();
 

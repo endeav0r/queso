@@ -54,10 +54,7 @@ class QuesoGraph : public Graph {
         std::string smtlib2 ();
 
         // returns NULL if operand could not be found by name & SSA
-        QuesoGraph * sliceForward  (Operand * operand);
-
-        // returns NULL if operand could not be found by name & SSA
-        QuesoGraph * sliceBackward (Operand * operand);
+        QuesoGraph * slice_backward (Operand * operand);
 };
 
 

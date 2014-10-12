@@ -36,6 +36,9 @@ static const struct luaL_Reg lqueso_instruction_m [] = {
     {"queso",              lqueso_instruction_queso},
     {"g_pc",               lqueso_instruction_g_pc},
     {"g_vIndex",           lqueso_instruction_g_vIndex},
+    {"flatten",            lqueso_instruction_flatten},
+    {"operand_written",    lqueso_instruction_operand_written},
+    {"operands_read",      lqueso_instruction_operands_read},
     {NULL, NULL}
 };
 
@@ -74,6 +77,7 @@ static const struct luaL_Reg lqueso_quesoGraph_m [] = {
     {"ssa",                 lqueso_quesoGraph_ssa},
     {"smtlib2Declarations", lqueso_quesoGraph_smtlib2Declarations},
     {"smtlib2",             lqueso_quesoGraph_smtlib2},
+    {"slice_backward",      lqueso_quesoGraph_slice_backward},
     {NULL, NULL}
 };
 
@@ -89,6 +93,8 @@ static const struct luaL_Reg lqueso_elf32_m [] = {
     {"entry",       lqueso_elf32_entry},
     {"memoryModel", lqueso_elf32_memoryModel},
     {"symbols",     lqueso_elf32_symbols},
+    {"relocs",      lqueso_elf32_relocs},
+    {"sections",    lqueso_elf32_sections},
     {NULL, NULL}
 };
 
@@ -137,6 +143,7 @@ LUALIB_API int luaopen_lqueso (lua_State * L) {
     lua_settable(L, -3);
 
     luaL_requiref(L, "luint64", luaopen_luint64, 1);
+
     luaL_newlib(L, lqueso_lib_f);
 
     return 1;
@@ -320,6 +327,38 @@ int lqueso_instruction_flatten (lua_State * L) {
     for (it = flattened.begin(); it != flattened.end(); it++) {
         lua_pushinteger(L, i++);
         lqueso_instruction_push(L, *it);
+        lua_settable(L, -3);
+    }
+
+    return 1;
+}
+
+
+int lqueso_instruction_operand_written (lua_State * L) {
+    Instruction * instruction = lqueso_instruction_check(L, -1);
+    lua_pop(L, 1);
+
+    if (instruction->operand_written() == NULL)
+        lua_pushnil(L);
+    else
+        lqueso_operand_push(L, instruction->operand_written());
+
+    return 1;
+}
+
+
+int lqueso_instruction_operands_read (lua_State * L) {
+    Instruction * instruction = lqueso_instruction_check(L, -1);
+    lua_pop(L, 1);
+
+    std::list <Operand *> :: iterator it;
+    lua_newtable(L);
+    int i = 1;
+    for (it = instruction->operands_read().begin();
+         it != instruction->operands_read().end();
+         it++) {
+        lua_pushinteger(L, i++);
+        lqueso_operand_push(L, *it);
         lua_settable(L, -3);
     }
 
@@ -731,6 +770,23 @@ int lqueso_quesoGraph_smtlib2 (lua_State * L) {
 }
 
 
+int lqueso_quesoGraph_slice_backward (lua_State * L) {
+    QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, 1);
+    Operand * operand = lqueso_operand_check(L, 2);
+
+    QuesoGraph * result = quesoGraph->slice_backward(operand);
+
+    lua_pop(L, 2);
+
+    if (result == NULL)
+        lua_pushnil(L);
+    else
+        lqueso_quesoGraph_absorb(L, result);
+
+    return 1;
+}
+
+
 /**********************************************************
 * lqueso_memoryModel
 **********************************************************/
@@ -792,7 +848,7 @@ int lqueso_memoryModel_g_byte (lua_State * L) {
 
     lua_pop(L, 2);
 
-    lua_pushinteger(L, memoryModel->g_byte(address));
+    lua_pushinteger(L, (unsigned int) memoryModel->g_byte(address));
 
     return 1;
 }
@@ -868,15 +924,10 @@ int lqueso_elf32_memoryModel (lua_State * L) {
 }
 
 
-int lqueso_elf32_symbols (lua_State * L) {
-    Elf32 * elf32 = lqueso_elf32_check(L, -1);
-    lua_pop(L, 1);
-
+int lqueso_elf32_parse_sym_list (lua_State * L, std::list <LoaderSymbol> symbols) {
     lua_newtable(L);
 
-    std::list <LoaderSymbol> symbols = elf32->symbols();
     std::list <LoaderSymbol> :: iterator it;
-    printf("got %d symbols\n", (int) symbols.size());fflush(stdout);
     for (it = symbols.begin(); it != symbols.end(); it++) {
         LoaderSymbol & loaderSymbol = *it;
 
@@ -897,12 +948,61 @@ int lqueso_elf32_symbols (lua_State * L) {
             lua_pushstring(L, "function");
             lua_settable(L, -3);
             break;
+        case LST_RELOC :
+            lua_pushstring(L, "type");
+            lua_pushstring(L, "reloc");
+            lua_settable(L, -3);
+            break;
         }
 
         lua_settable(L, -3);
     }
 
-    printf("done with symbols\n");fflush(stdout);
+    return 1;
+}
+
+
+int lqueso_elf32_symbols (lua_State * L) {
+    Elf32 * elf32 = lqueso_elf32_check(L, -1);
+    lua_pop(L, 1);
+
+    return lqueso_elf32_parse_sym_list(L, elf32->symbols());
+}
+
+
+int lqueso_elf32_relocs (lua_State * L) {
+    Elf32 * elf32 = lqueso_elf32_check(L, -1);
+    lua_pop(L, 1);
+
+    return lqueso_elf32_parse_sym_list(L, elf32->relocs());
+}
+
+
+int lqueso_elf32_sections (lua_State * L) {
+    Elf32 * elf32 = lqueso_elf32_check(L, -1);
+
+    std::list <Elf32Section> sections = elf32->sections();
+    lua_pop(L, 1);
+
+    lua_newtable(L);
+
+    std::list <Elf32Section> :: iterator it;
+    for (it = sections.begin(); it != sections.end(); it++) {
+        Elf32Section & section = *it;
+
+        lua_pushstring(L, section.g_name().c_str());
+        lua_newtable(L);
+
+        lua_pushstring(L, "address");
+        luint64_push(L, section.g_address());
+        lua_settable(L, -3);
+
+        lua_pushstring(L, "size");
+        luint64_push(L, section.g_size());
+        lua_settable(L, -3);
+
+        lua_settable(L, -3);
+    }
 
     return 1;
 }
