@@ -213,7 +213,6 @@ QuesoGraph * X86Disassembler :: acyclicDepth (uint64_t entry,
             std::list <uint64_t> :: iterator it;
             for (it = successors.begin(); it != successors.end(); it++) {
                 uint64_t address = *it;
-                printf("%llx\n", address);fflush(stdout);
                 // disassemble each instruction
                 MemoryBuffer memoryBuffer = memoryModel->g_bytes(address, 16);
                 InstructionX86 * nextIx86 = quesoX86.translate(memoryBuffer.g_data(),

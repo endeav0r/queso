@@ -39,6 +39,8 @@ static const struct luaL_Reg lqueso_instruction_m [] = {
     {"flatten",            lqueso_instruction_flatten},
     {"operand_written",    lqueso_instruction_operand_written},
     {"operands_read",      lqueso_instruction_operands_read},
+    {"g_successors",       lqueso_instruction_g_successors},
+    {"g_predecessors",     lqueso_instruction_g_predecessors},
     {NULL, NULL}
 };
 
@@ -350,16 +352,57 @@ int lqueso_instruction_operand_written (lua_State * L) {
 
 int lqueso_instruction_operands_read (lua_State * L) {
     Instruction * instruction = lqueso_instruction_check(L, -1);
+    std::list <Operand *> operands = instruction->operands_read();
     lua_pop(L, 1);
 
     std::list <Operand *> :: iterator it;
     lua_newtable(L);
     int i = 1;
-    for (it = instruction->operands_read().begin();
-         it != instruction->operands_read().end();
-         it++) {
+    for (it = operands.begin(); it != operands.end(); it++) {
         lua_pushinteger(L, i++);
         lqueso_operand_push(L, *it);
+        lua_settable(L, -3);
+    }
+
+    return 1;
+}
+
+
+int lqueso_instruction_g_successors (lua_State * L) {
+    Instruction * instruction = lqueso_instruction_check(L, -1);
+    const std::list <GraphEdge *> successors = instruction->g_successors();
+
+    lua_pop(L, 1);
+    lua_newtable(L);
+
+    unsigned int i = 1;
+    std::list <GraphEdge *> :: const_iterator it;
+    for (it = successors.begin(); it != successors.end(); it++) {
+        QuesoEdge * quesoEdge = (QuesoEdge *) dynamic_cast<QuesoEdge *>(*it);
+
+        lua_pushinteger(L, i++);
+        luint64_push(L, quesoEdge->g_tail()->g_vIndex());
+        lua_settable(L, -3);
+    }
+
+    return 1;
+}
+
+
+int lqueso_instruction_g_predecessors (lua_State * L) {
+    Instruction * instruction = lqueso_instruction_check(L, -1);
+    const std::list <GraphEdge *> predecessors = instruction->g_predecessors();
+
+    lua_pop(L, 1);
+    lua_newtable(L);
+
+    unsigned int i = 1;
+    std::list <GraphEdge *> :: const_iterator it;
+    for (it = predecessors.begin(); it != predecessors.end(); it++) {
+        QuesoEdge * quesoEdge = (QuesoEdge *) dynamic_cast<QuesoEdge *>(*it);
+
+        lua_pushinteger(L, i++);
+        luint64_push(L, quesoEdge->g_head()->g_vIndex());
         lua_settable(L, -3);
     }
 

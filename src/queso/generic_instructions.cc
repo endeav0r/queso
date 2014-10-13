@@ -239,7 +239,7 @@ InstructionStoreLE16 * InstructionStoreLE16 :: copy () const {
 InstructionStoreLE32 :: InstructionStoreLE32 (const Array & memory,
                                               const Operand & address,
                                               const Operand & value)
-: memory (memory.copy()), address (address.copy()), value (value.copy()) {
+: mem_dst (memory.copy()), memory (memory.copy()), address (address.copy()), value (value.copy()) {
     init();
 }
 
@@ -247,12 +247,13 @@ InstructionStoreLE32 :: InstructionStoreLE32 (const Array & memory,
 InstructionStoreLE32 :: InstructionStoreLE32 (const Array * memory,
                                               const Operand * address,
                                               const Operand * value)
-: memory (memory->copy()), address (address->copy()), value (value->copy()) {
+: mem_dst (memory->copy()), memory (memory->copy()), address (address->copy()), value (value->copy()) {
     init();
 }
 
 
 InstructionStoreLE32 :: ~InstructionStoreLE32 () {
+    delete mem_dst;
     delete memory;
     delete address;
     delete value;
@@ -260,6 +261,7 @@ InstructionStoreLE32 :: ~InstructionStoreLE32 () {
 
 
 void InstructionStoreLE32 :: init () {
+    /*
     Variable tmpAddress(address->g_bits(), "tmpAddress");
     Constant one(address->g_bits(), 1);
     Variable tmpShift(32, "tmpShift");
@@ -283,6 +285,7 @@ void InstructionStoreLE32 :: init () {
     push_depth_instruction(new InstructionShr(&tmpShift, &tmpShift, &eight));
     push_depth_instruction(new InstructionAssign(&tmp, &tmpShift));
     push_depth_instruction(new InstructionStore(memory, &tmpAddress, &tmp));
+    */
 }
 
 
@@ -296,4 +299,41 @@ const std::string InstructionStoreLE32 :: queso () const {
 
 InstructionStoreLE32 * InstructionStoreLE32 :: copy () const {
     return  new InstructionStoreLE32(memory, address, value);
+}
+
+
+
+
+
+
+
+std::list <Operand *> InstructionStoreLE32 :: operands_read () {
+    std::list <Operand *> operands;
+    operands.push_back(memory);
+    operands.push_back(address);
+    operands.push_back(value);
+    return operands;
+}
+
+
+std::list <Operand *> InstructionStoreLE32 :: operands () {
+    std::list <Operand *> operands;
+    operands.push_back(mem_dst);
+    operands.push_back(memory);
+    operands.push_back(address);
+    operands.push_back(value);
+    return operands;
+}
+
+
+const std::string InstructionStoreLE32 :: smtlib2 () const {
+    std::stringstream ss;
+    ss << "(assert (= " << mem_dst->smtlib2() << " "
+       << "(store (store (store (store "
+       << memory->smtlib2() << " " << address->smtlib2() << " ((_ extract 7 0) " << value->smtlib2() << ")) "
+       << "(bvadd " << address->smtlib2() << " #x00000001) ((_ extract 15 8) " << value->smtlib2() << ")) "
+       << "(bvadd " << address->smtlib2() << " #x00000002) ((_ extract 23 16) " << value->smtlib2() << ")) "
+       << "(bvadd " << address->smtlib2() << " #x00000003) ((_ extract 31 24) " << value->smtlib2() << ")) "
+       << "))";
+    return ss.str();
 }

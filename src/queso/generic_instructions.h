@@ -81,6 +81,7 @@ class InstructionStoreLE16 : public Instruction {
 
 class InstructionStoreLE32 : public Instruction {
     private :
+        Array * mem_dst;
         Array * memory;
         Operand * address;
         Operand * value;
@@ -96,9 +97,15 @@ class InstructionStoreLE32 : public Instruction {
                               const Operand * value);
         virtual ~InstructionStoreLE32 ();
 
+        Operand * operand_written () { return mem_dst; }
+        std::list <Operand *> operands_read ();
+        std::list <Operand *> operands ();
+
         const std::string queso () const;
 
         InstructionStoreLE32 * copy () const;
+
+        const std::string smtlib2 () const;
 };
 
 #endif
