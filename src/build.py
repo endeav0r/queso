@@ -8,7 +8,8 @@ import os
 COMPILER = 'g++'
 INCLUDE = '-I./ -I/usr/local/include/SDL2 -I/usr/local/include/ -I/usr/include/lua5.2'
 FLAGS = '-O2 -std=c++11 -DCYGWIN'
-LIB = '-ludis86 -L/usr/local/lib -lSDL2main -lSDL2 -lSDL2_ttf'
+#LIB = '-ludis86 -L/usr/local/lib -lSDL2main -lSDL2 -lSDL2_ttf'
+LIB = '-ludis86 -L/usr/local/lib'
 CYGWIN = '-lcygwin -mwindows'
 LINUX = '-llua5.2'
 
