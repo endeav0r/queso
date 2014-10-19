@@ -11,7 +11,6 @@ function inTable (haystack, needle)
 end
 
 
-
 function map (f, t)
     local r = {}
     for k,v in pairs(t) do
@@ -34,6 +33,89 @@ function mapInstruction (f, instruction)
 end
 
 
+function graphFindIndex (graph, index)
+    for k,v in pairs(graph:g_vertices()) do
+        if v:g_vIndex() == index then return v end
+    end
+    return nil
+end
+
+
+function assertControlFlow (graph)
+    local declarations = {}
+    local assertions = {}
+
+    for k,instruction in pairs(graph:g_vertices()) do
+        table.insert(declarations, '(declare-fun vIndex_' .. instruction:g_vIndex():number() .. ' () Bool)')
+    end
+
+    for k, instruction in pairs(graph:g_vertices()) do
+        
+        local successors = instruction:g_successors()
+        if #successors == 1 then
+            table.insert(assertions, '(assert (= vIndex_' .. instruction:g_vIndex():number() .. ' vIndex_' .. successors[1]:number() .. '))')
+        elseif #successors == 2 then
+            local a = '(assert (= vIndex_' .. instruction:g_vIndex():number() .. ' '
+            a = a ..  '(xor vIndex_' .. successors[1]:number() .. ' vIndex_' .. successors[2]:number() .. ')))'
+            table.insert(assertions, a)
+        elseif #successors > 2 then
+            print('ERROR, ' .. #successors .. ' successors')
+        end
+    end
+    return assertions, declarations
+end
+
+
+function assertPC (graph)
+    local assertions = {}
+    for k, instruction in pairs(graph:g_vertices()) do
+        -- assert control flow after every call
+        if string.match(instruction:queso(), 'call') then
+            local successors = instruction:g_successors()
+            for k, successor in pairs(map(function (s) return graphFindIndex(graph, s) end, successors)) do
+                -- get value of eip at start of this instruction
+                local eip = successor:flatten()[2]:operands_read()[1]
+                for k,v in pairs(successor:flatten()) do print('-- ' .. v:queso()) end
+                local assertion =  '(assert (= vIndex_' .. successor:g_vIndex():number() .. 
+                                   ' (ite (= ' .. eip:smtlib2() .. ' #x' ..
+                                   string.format('%08x', successor:g_pc():number()) .. ') true false)))'
+                --table.insert(assertions, assertion)
+                print(assertion)
+                print(successor:g_pc())
+            end
+
+        end
+        for k, subIns in pairs(instruction:flatten()) do
+            if string.match(subIns:queso(), 'ite') ~= nil and
+               subIns:operand_written():name() == 'eip'
+               and string.match(instruction:queso(), 'jmp') == nil then
+                -- we've reached a conditional jump
+                -- assert eip before this conditional jump
+                -- get the first eip value of this instruction
+                local opsRead = instruction:flatten()[1]:operands_read()
+                local eip = opsRead[1]
+                -- we will assert the successor addresses of this jump
+                local successors = instruction:g_successors()
+                -- we are going to tie EIP values with vIndex values
+                for k, successor in pairs(successors) do
+                    local successorInstruction = graphFindIndex(graph, successor)
+                    local assertion = '(assert (= vIndex_' ..
+                                      successor:number() .. ' (ite (= ' ..
+                                      subIns:operand_written():smtlib2() ..
+                                      ' #x' .. string.format('%08x', successorInstruction:g_pc():number()) ..
+                                      ') true false)))'
+                    table.insert(assertions, assertion)
+                end
+                -- we are also going to require that one of the successors is true
+                table.insert(assertions, '(assert (= true (xor vIndex_' ..
+                                         successors[1]:number() .. ' vIndex_' ..
+                                         successors[2]:number() .. ')))')
+            end
+        end
+    end
+    return assertions
+end
+
 
 function createAssertion (variableName, value)
     return "(assert (= "
@@ -52,12 +134,14 @@ function getValue32Load (memory, address)
 end
 
 
-function solver (quesoGraph, assertions, values)
+function solver (quesoGraph, assertions, values, declarations)
     local smtlib2Header = "(set-option :produce-models true)\n"
     smtlib2Header = smtlib2Header .. "(set-logic QF_AUFBV)\n"
     smtlib2Header = smtlib2Header .. "(set-info :smt-lib-version 2.0)\n"
 
-    local smtlib2 = quesoGraph:smtlib2Declarations() .. quesoGraph:smtlib2()
+    local smtlib2 = quesoGraph:smtlib2Declarations() 
+    if declarations then smtlib2 = smtlib2 .. table.concat(declarations, '\n') .. '\n' end
+    smtlib2  = smtlib2 .. quesoGraph:smtlib2()
 
     local daFile = smtlib2Header .. smtlib2
     daFile = daFile .. table.concat(assertions, '\n') .. '\n'
@@ -127,7 +211,6 @@ function find_last_ret_eip (graph)
         -- for every ret instruction, find the last eip that's set
         if instruction:g_pc():number() == 0x804845f then
         --if string.match(instruction:queso(), 'ret') then
-            print('found ret', instruction:g_pc())
             local flattened = instruction:flatten()
             for k, instruction in pairs(flattened) do
                 local operandWritten = instruction:operand_written()
@@ -137,70 +220,135 @@ function find_last_ret_eip (graph)
                     end
                 end
             end
-            print('last eip = ' .. last_eip:smtlib2())
         end
     end
     return last_eip
 end
 
 last_eip = find_last_ret_eip(quesoGraph)
-local sliceGraph = quesoGraph:slice_backward_thin(last_eip)
-sliceGraph:ssa(#sliceGraph:g_vertices() - 1)
+--local sliceGraph = quesoGraph:slice_backward(last_eip)
+--sliceGraph:ssa(#sliceGraph:g_vertices() - 1)
 
-local vertices = sliceGraph:g_vertices()
-print(vertices[1])
+--local vertices = sliceGraph:g_vertices()
+--print(vertices[1])
 
-last_eip = sliceGraph:g_vertices()[1]:operand_written()
+--last_eip = sliceGraph:g_vertices()[1]:operand_written()
 --last_eip = find_last_ret_eip(sliceGraph)
 print('last eip => ' .. last_eip:smtlib2())
 
-quesoGraph = sliceGraph
+--quesoGraph = sliceGraph
 
 -- pass to solver, solving for eip
-solver(quesoGraph, 
-       {
-        createAssertion('eip_0', '#x08048430'),
-        createAssertion('esp_0', '#xbfff0000'),
-        createAssertion('(select memory_0 esp_0)', '#x41'),
-        createAssertion('(select memory_0 (bvadd esp_0 #x00000001))', '#x41'),
-        createAssertion('(select memory_0 (bvadd esp_0 #x00000002))', '#x41'),
-        createAssertion('(select memory_0 (bvadd esp_0 #x00000003))', '#x41'),
+--local assertions = assertControlFlow(quesoGraph)
+local controlFlowAssertions, declarations = assertControlFlow(quesoGraph)
+local pcAssertions = assertPC(quesoGraph)
+
+local assertions = {}
+for k,v in pairs(controlFlowAssertions) do table.insert(assertions, v) end
+for k,v in pairs(pcAssertions) do table.insert(assertions, v) end
+
+--for k,assertion in pairs(assertions) do print(assertion) end
+table.insert(assertions, createAssertion('eip_0', '#x08048430'))
+table.insert(assertions, createAssertion('esp_0', '#xbfff0000'))
+
+table.insert(assertions, createAssertion('(select memory_0 esp_0)', '#x41'))
+table.insert(assertions, createAssertion('(select memory_0 (bvadd esp_0 #x00000001))', '#x41'))
+table.insert(assertions, createAssertion('(select memory_0 (bvadd esp_0 #x00000002))', '#x41'))
+table.insert(assertions, createAssertion('(select memory_0 (bvadd esp_0 #x00000003))', '#x41'))
 
 
-        createAssertion('(select memory_0 (bvadd #xbfff0008))', '#x40'),
-        createAssertion('(select memory_0 (bvadd #xbfff0009))', '#x40'),
-        createAssertion('(select memory_0 (bvadd #xbfff000a))', '#x40'),
-        createAssertion('(select memory_0 (bvadd #xbfff000b))', '#x40'),
+table.insert(assertions, createAssertion('(select memory_0 (bvadd #xbfff0008))', '#x40'))
+table.insert(assertions, createAssertion('(select memory_0 (bvadd #xbfff0009))', '#x40'))
+table.insert(assertions, createAssertion('(select memory_0 (bvadd #xbfff000a))', '#x40'))
+table.insert(assertions, createAssertion('(select memory_0 (bvadd #xbfff000b))', '#x40'))
 
-        createAssertion('(select memory_0 (bvadd #x40404044))', '#x4c'),
-        createAssertion('(select memory_0 (bvadd #x40404045))', '#x40'),
-        createAssertion('(select memory_0 (bvadd #x40404046))', '#x40'),
-        createAssertion('(select memory_0 (bvadd #x40404047))', '#x40'),
-        --createAssertion('argv_1_1', getValue32Load('memory_0', '(bvadd argv_1_1 #x00000004)')),
-        --createAssertion('argv', getValue32Load('memory_0', 'argv_1_1')),
-        createAssertion(last_eip:smtlib2(), '#xdeadbeef')
-       },
+table.insert(assertions, createAssertion('(select memory_0 (bvadd #x40404044))', '#x4c'))
+table.insert(assertions, createAssertion('(select memory_0 (bvadd #x40404045))', '#x40'))
+table.insert(assertions, createAssertion('(select memory_0 (bvadd #x40404046))', '#x40'))
+table.insert(assertions, createAssertion('(select memory_0 (bvadd #x40404047))', '#x40'))
+        --createAssertion('argv_1_1', getValue32Load('memory_0', '(bvadd argv_1_1 #x00000004)')))
+        --createAssertion('argv', getValue32Load('memory_0', 'argv_1_1')))
+table.insert(assertions, createAssertion(last_eip:smtlib2(), '#xdeadbeef'))
+--table.insert(assertions, createAssertion('eip_774', '#x0804845f'))
+--table.insert(assertions, createAssertion('eip_772', '#x0804845e'))
+--table.insert(assertions, createAssertion('eip_770', '#x08048459'))
+--table.insert(assertions, createAssertion('eip_767', '#x080482f0'))
+--table.insert(assertions, createAssertion('eip_764', '#x08048454'))
+--table.insert(assertions, createAssertion('eip_762', '#x08048451'))
+
+
+--table.insert(assertions, createAssertion('eip_205', '#x08048411'))
+--table.insert(assertions, createAssertion('eip_550', '#x08048411'))
+
+--table.insert(assertions, createAssertion('ZF_55', '#b1'))
+--table.insert(assertions, createAssertion('eip_389', 'tmp_105'))
+--table.insert(assertions, createAssertion('eip_759', '#x0804842f'))
+
+
+-- eip_774 804845f ret
+-- eip_772 804845e leave
+-- eip_770 8048459 mov eax, 0x1
+-- eip_767 80482f0 ret
+-- eip_764 8048454 call 0xfffffe9c
+-- eip_762 8048451 mov [esp], eax
+-- eip_759 804842f ret
+
+solver(quesoGraph, assertions,
        {last_eip:smtlib2(),
+       'vIndex_18', 'vIndex_19',
+       'vIndex_17', 'vIndex_35', 'vIndex_53', 'vIndex_71',
+       'vIndex_89', 'vIndex_107', 'vIndex_124', 'vIndex_143',
+       'rhs_sext_1',
+       'eip_10',
+       'eip_11',
+       'eip_12',
+       
+        'eip_752',
+        'eip_21',
+        'eip_44',
+        'eip_45',
+        'eip_774',
+        'eip_772',
+        'eip_767',
         'esp_0',
         'esp_10',
-        --[[
-        'argv_1',
-        'argv_1_1',
-        'argv',
-        getValue32Load('memory_0', '(bvadd argv #x00000000)'),
-        getValue32Load('memory_0', '(bvadd argv #x00000004)'),
-        getValue32Load('memory_0', '(bvadd argv #x00000008)'),
-        getValue32Load('memory_0', '(bvadd argv #x0000000c)'),
-        getValue32Load('memory_0', '(bvadd argv #x00000010)'),
-        getValue32Load('memory_0', '(bvadd argv #x00000014)'),
-        getValue32Load('memory_0', '(bvadd argv #x0000001c)'),
-        getValue32Load('memory_0', '(bvadd argv #x00000020)'),
-        getValue32Load('memory_0', '(bvadd argv #x00000024)'),
-        getValue32Load('memory_0', '(bvadd argv #x0000002c)'),
-        getValue32Load('memory_0', '(bvadd argv #x00000030)'),
-        getValue32Load('memory_0', '(bvadd argv #x00000034)'),
-        getValue32Load('memory_0', '(bvadd argv #x00000038)'),
-        ]]--
+        'eip_214',
+        'rhs_sext_2',
+        'eip_215',
+        'eip_759',
+        'eax_91',
+        'ZF_52',
+        'notZF_1',  'eip_21',
+        'notZF_2',  'eip_44',
+        'notZF_3',  'eip_67',
+        'notZF_4',  'eip_90',
+        'notZF_5',  'eip_113',
+        'notZF_6',  'eip_136',
+        'notZF_7',  'eip_159',
+        'notZF_8',  'eip_182',
+        'notZF_9',  'eip_205',
+        'notZF_10', 'eip_228',
+        'notZF_11', 'eip_251',
+        'notZF_12', 'eip_274',
+        'notZF_13', 'eip_297',
+        'notZF_14', 'eip_320',
+        'notZF_15', 'eip_343',
+        'notZF_16', 'eip_366',
+        'notZF_17', 'eip_389',
+        'notZF_18', 'eip_412',
+        'notZF_19', 'eip_435',
+        'notZF_20', 'eip_458',
+        'notZF_21', 'eip_481',
+        'notZF_22', 'eip_504',
+        'notZF_23', 'eip_527',
+        'notZF_24', 'eip_550',
+        'notZF_25', 'eip_573',
+        'eip_550',
+        'eip_412', 'eip_411', 'eip_410', 'eip_407',
+        'eip_405', 'eip_403', 'eip_400', 'eip_397',
+        'eip_395', 'eip_392', 'eip_390', 'eip_389',
+        'tmp_105', 'eip_388',
+        'eip_21', 'notZF_1', 'tmp_9', 'eip_20',
         getValue32Load('memory_0', '#xbfff0000'),
         getValue32Load('memory_0', '#xbfff0008'),
         getValue32Load('memory_0', '#xbfff000c'),
@@ -223,7 +371,8 @@ solver(quesoGraph,
         getValue32Load('memory_0', '#x40404080'),
         getValue32Load('memory_0', '#x40404084'),
         
-        getValue32Load('memory_0', 'esp_0')})
+        getValue32Load('memory_0', 'esp_0')},
+        declarations)
 --[[
     local flattened = instruction:flatten()
     for k, instruction in pairs(flattened) do
