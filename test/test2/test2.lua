@@ -70,6 +70,7 @@ function assertPC (graph)
     local assertions = {}
     for k, instruction in pairs(graph:g_vertices()) do
         -- assert control flow after every call
+        --[[
         if string.match(instruction:queso(), 'call') then
             local successors = instruction:g_successors()
             for k, successor in pairs(map(function (s) return graphFindIndex(graph, s) end, successors)) do
@@ -85,6 +86,7 @@ function assertPC (graph)
             end
 
         end
+        ]]--
         for k, subIns in pairs(instruction:flatten()) do
             if string.match(subIns:queso(), 'ite') ~= nil and
                subIns:operand_written():name() == 'eip'
@@ -107,9 +109,12 @@ function assertPC (graph)
                     table.insert(assertions, assertion)
                 end
                 -- we are also going to require that one of the successors is true
-                table.insert(assertions, '(assert (= true (xor vIndex_' ..
+                -- as long as this node is also true
+                table.insert(assertions, '(assert (= true (ite (= vIndex_' ..
+                                         instruction:g_vIndex():number() .. ' true) ' ..
+                                         '(xor vIndex_' ..
                                          successors[1]:number() .. ' vIndex_' ..
-                                         successors[2]:number() .. ')))')
+                                         successors[2]:number() .. ') true)))')
             end
         end
     end
@@ -250,6 +255,7 @@ for k,v in pairs(pcAssertions) do table.insert(assertions, v) end
 --for k,assertion in pairs(assertions) do print(assertion) end
 table.insert(assertions, createAssertion('eip_0', '#x08048430'))
 table.insert(assertions, createAssertion('esp_0', '#xbfff0000'))
+--table.insert(assertions, createAssertion('al_57', '#x00'))
 
 table.insert(assertions, createAssertion('(select memory_0 esp_0)', '#x41'))
 table.insert(assertions, createAssertion('(select memory_0 (bvadd esp_0 #x00000001))', '#x41'))
@@ -266,38 +272,29 @@ table.insert(assertions, createAssertion('(select memory_0 (bvadd #x40404044))',
 table.insert(assertions, createAssertion('(select memory_0 (bvadd #x40404045))', '#x40'))
 table.insert(assertions, createAssertion('(select memory_0 (bvadd #x40404046))', '#x40'))
 table.insert(assertions, createAssertion('(select memory_0 (bvadd #x40404047))', '#x40'))
-        --createAssertion('argv_1_1', getValue32Load('memory_0', '(bvadd argv_1_1 #x00000004)')))
-        --createAssertion('argv', getValue32Load('memory_0', 'argv_1_1')))
+
 table.insert(assertions, createAssertion(last_eip:smtlib2(), '#xdeadbeef'))
---table.insert(assertions, createAssertion('eip_774', '#x0804845f'))
---table.insert(assertions, createAssertion('eip_772', '#x0804845e'))
---table.insert(assertions, createAssertion('eip_770', '#x08048459'))
---table.insert(assertions, createAssertion('eip_767', '#x080482f0'))
---table.insert(assertions, createAssertion('eip_764', '#x08048454'))
---table.insert(assertions, createAssertion('eip_762', '#x08048451'))
 
 
---table.insert(assertions, createAssertion('eip_205', '#x08048411'))
---table.insert(assertions, createAssertion('eip_550', '#x08048411'))
+table.insert(assertions, '(assert (= vIndex_609 true))')
+--table.insert(assertions, createAssertion('notZF_34', '#b0'))
 
---table.insert(assertions, createAssertion('ZF_55', '#b1'))
---table.insert(assertions, createAssertion('eip_389', 'tmp_105'))
---table.insert(assertions, createAssertion('eip_759', '#x0804842f'))
-
-
--- eip_774 804845f ret
--- eip_772 804845e leave
--- eip_770 8048459 mov eax, 0x1
--- eip_767 80482f0 ret
--- eip_764 8048454 call 0xfffffe9c
--- eip_762 8048451 mov [esp], eax
--- eip_759 804842f ret
+for k, instruction in pairs(quesoGraph:g_vertices()) do
+    if string.match(instruction:queso(), 'ret') ~= nil then
+        local eip = instruction:flatten()[3]:operand_written()
+        if eip:smtlib2() == last_eip:smtlib2() then
+            print(eip:smtlib2())
+            print(instruction:g_vIndex():number())
+        end
+    end
+end
 
 solver(quesoGraph, assertions,
        {last_eip:smtlib2(),
        'vIndex_18', 'vIndex_19',
        'vIndex_17', 'vIndex_35', 'vIndex_53', 'vIndex_71',
        'vIndex_89', 'vIndex_107', 'vIndex_124', 'vIndex_143',
+       'vIndex_609',
        'rhs_sext_1',
        'eip_10',
        'eip_11',
@@ -343,12 +340,18 @@ solver(quesoGraph, assertions,
         'notZF_23', 'eip_527',
         'notZF_24', 'eip_550',
         'notZF_25', 'eip_573',
-        'eip_550',
-        'eip_412', 'eip_411', 'eip_410', 'eip_407',
-        'eip_405', 'eip_403', 'eip_400', 'eip_397',
-        'eip_395', 'eip_392', 'eip_390', 'eip_389',
-        'tmp_105', 'eip_388',
-        'eip_21', 'notZF_1', 'tmp_9', 'eip_20',
+        'notZF_26', 'eip_596',
+        'notZF_27', 'eip_619',
+        'notZF_28', 'eip_642',
+        'notZF_29', 'eip_665',
+        'notZF_30', 'eip_688',
+        'notZF_31', 'eip_711',
+        'notZF_32', 'eip_734',
+        'notZF_33', 'eip_757',
+        'notZF_34', 'eip_780',
+        'vIndex_594',
+        'vIndex_595',
+        'eip_759',
         getValue32Load('memory_0', '#xbfff0000'),
         getValue32Load('memory_0', '#xbfff0008'),
         getValue32Load('memory_0', '#xbfff000c'),
@@ -370,6 +373,10 @@ solver(quesoGraph, assertions,
         getValue32Load('memory_0', '#x4040407c'),
         getValue32Load('memory_0', '#x40404080'),
         getValue32Load('memory_0', '#x40404084'),
+        getValue32Load('memory_0', '#x40404088'),
+        getValue32Load('memory_0', '#x4040408c'),
+        getValue32Load('memory_0', '#x40404090'),
+        getValue32Load('memory_0', '#x40404094'),
         
         getValue32Load('memory_0', 'esp_0')},
         declarations)
