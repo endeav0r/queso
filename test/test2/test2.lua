@@ -154,7 +154,7 @@ function solver (quesoGraph, assertions, values, declarations)
     --daFile = daFile .. '(get-model)\n'
     daFile = daFile .. "(get-value (" .. table.concat(values, " ") .. "))"
 
-    local fh = io.open('/tmp/smtlib2.smt2', 'w')
+    local fh = io.open('test2.smt2', 'w')
     fh:write(daFile)
     fh:close()
 end
@@ -203,7 +203,7 @@ end
 
 print('getting acyclic graph')
 local mainAddress = test2:symbols()['main']['address']
-local quesoGraph = lqueso.x86acyclicDepth(mainAddress, memoryModel, 350)
+local quesoGraph = lqueso.x86treeDepth(mainAddress, memoryModel, 256)
 
 print('applying ssa')
 quesoGraph:ssa(0)
@@ -276,7 +276,7 @@ table.insert(assertions, createAssertion('(select memory_0 (bvadd #x40404047))',
 table.insert(assertions, createAssertion(last_eip:smtlib2(), '#xdeadbeef'))
 
 
-table.insert(assertions, '(assert (= vIndex_609 true))')
+--table.insert(assertions, '(assert (= vIndex_609 true))')
 --table.insert(assertions, createAssertion('notZF_34', '#b0'))
 
 for k, instruction in pairs(quesoGraph:g_vertices()) do
