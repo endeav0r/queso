@@ -3,6 +3,44 @@
 
 #include "queso.h"
 
+
+class InstructionPhi : public Instruction {
+    private :
+        Operand * dst;
+        std::list <Operand *> src;
+
+    public :
+        InstructionPhi (const Operand * dst);
+        virtual ~InstructionPhi ();
+
+        void add_src (const Operand * operand);
+
+        void set_src (const std::list <Operand *> operands) {
+            clear_src();
+            std::list <Operand *> :: const_iterator it;
+            for (it = operands.begin(); it != operands.end(); it++)
+                add_src((*it)->copy());
+        }
+
+        void clear_src () {
+            std::list <Operand *> :: iterator it;
+            for (it = src.begin(); it != src.end(); it++)
+                delete *it;
+            src.clear();
+        }
+
+        Operand * operand_written () { return dst; }
+        std::list <Operand *> operands_read ();
+        std::list <Operand *> operands ();
+
+        const std::string queso () const;
+
+        InstructionPhi * copy () const;
+
+        const std::string smtlib2 () const;
+};
+
+
 class InstructionLoadLE16 : public Instruction {
     private :
         Variable * dst;

@@ -6,8 +6,9 @@ import thread
 import os
 
 COMPILER = 'g++'
-INCLUDE = '-I./ -I/usr/local/include/SDL2 -I/usr/local/include/ -I/usr/include/lua5.2'
-FLAGS = '-O2 -std=c++11 -DCYGWIN'
+#INCLUDE = '-I./ -I/usr/local/include/SDL2 -I/usr/local/include/ -I/usr/include/lua5.2'
+INCLUDE = '-I./ -I/usr/local/include/ -I/usr/include/lua5.2'
+FLAGS = '-O2 -std=c++11 -g'
 #LIB = '-ludis86 -L/usr/local/lib -lSDL2main -lSDL2 -lSDL2_ttf'
 LIB = '-ludis86 -L/usr/local/lib'
 CYGWIN = '-lcygwin -mwindows'
@@ -46,6 +47,7 @@ def build (flags) :
             return
 
     # build quesoGui
+    '''
     cmd = ' '.join([COMPILER, \
                     '-o quesoGui', \
                     ' '.join(map(lambda x: x['obj'], sourceFiles)), \
@@ -57,6 +59,7 @@ def build (flags) :
         cmd += ' ' + LINUX
     print cmd
     executeCommand(cmd)
+    '''
 
     # build lqueso.so
     cmd = ' '.join([COMPILER, \
@@ -88,11 +91,11 @@ addSourceFile('containers/memoryModel')
 addSourceFile('disassembler/x86Disassembler')
 addSourceFile('graph/graph')
 addSourceFile('graph/quesoGraph')
-addSourceFile('gui/gui')
-addSourceFile('gui/guiButton')
-addSourceFile('gui/widget')
-addSourceFile('gui/quesoGui')
-addSourceFile('gui/guiGraph')
+#addSourceFile('gui/gui')
+#addSourceFile('gui/guiButton')
+#addSourceFile('gui/widget')
+#addSourceFile('gui/quesoGui')
+#addSourceFile('gui/guiGraph')
 addSourceFile('loader/elf32')
 addSourceFile('loader/loader')
 addSourceFile('lua/lua')

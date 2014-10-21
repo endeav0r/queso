@@ -1,6 +1,119 @@
 #include "generic_instructions.h"
 
 #include <sstream>
+#include <vector>
+
+InstructionPhi :: InstructionPhi (const Operand * dst) {
+    this->dst = dst->copy();
+}
+
+
+InstructionPhi :: ~InstructionPhi () {
+    delete dst;
+
+    std::list <Operand *> :: iterator it;
+    for (it = src.begin(); it != src.end(); it++)
+        delete *it;
+}
+
+
+void InstructionPhi :: add_src (const Operand * operand) {
+    this->src.push_back(operand->copy());
+}
+
+
+std::list <Operand *> InstructionPhi :: operands_read () {
+    return src;
+}
+
+
+std::list <Operand *> InstructionPhi :: operands () {
+    std::list <Operand *> result;
+    std::list <Operand *> :: iterator it;
+
+    for (it = src.begin(); it != src.end(); it++) {
+        result.push_back((*it)->copy());
+    }
+
+    result.push_back(dst->copy());
+
+    return result;
+}
+
+
+const std::string InstructionPhi :: queso () const {
+    std::stringstream ss;
+
+    ss << "Phi " << dst->queso() << " <- ( ";
+
+    std::list <Operand *> :: const_iterator it;
+    for (it = src.begin(); it != src.end(); it++) {
+        ss << (*it)->queso() << " ";
+    }
+
+    ss << ")";
+    return ss.str();
+}
+
+
+InstructionPhi * InstructionPhi :: copy () const {
+    InstructionPhi * newPhi = new InstructionPhi(dst);
+
+    std::list <Operand *> :: const_iterator it;
+    for (it = src.begin(); it != src.end(); it++) {
+        newPhi->add_src(*it);
+    }
+
+    return newPhi;
+}
+
+
+std::string phi_smtlib2 (Operand * dst, std::vector <Operand *> operands) {
+    std::stringstream ss;
+    if (operands.size() == 2) {
+        ss << "(or " 
+           << "(= " << dst->smtlib2() << " " << operands[0]->smtlib2() << ") "
+           << "(= " << dst->smtlib2() << " " << operands[1]->smtlib2() << "))";
+        return ss.str();
+    }
+    else if (operands.size() == 3) {
+        ss << "(or (or "
+           << "(= " << dst->smtlib2() << " " << operands[0]->smtlib2() << ") "
+           << "(= " << dst->smtlib2() << " " << operands[1]->smtlib2() << ")) "
+           << "(= " << dst->smtlib2() << " " << operands[2]->smtlib2() << ")) ";
+        return ss.str();
+    }
+    else {
+        std::vector <Operand *> first;
+        std::vector <Operand *> second;
+        for (size_t i = 0; i < operands.size(); i++) {
+            if (i < operands.size() / 2)
+                first.push_back(operands[i]);
+            else
+                second.push_back(operands[i]);
+        }
+        ss << "(or "
+           << phi_smtlib2(dst, first) << " "
+           << phi_smtlib2(dst, second) << ")";
+        return ss.str();
+    }
+}
+
+
+const std::string InstructionPhi :: smtlib2 () const {
+    std::stringstream ss;
+    if (src.size() == 0)
+        return "";
+
+    else if (src.size() == 1) {
+        ss << "(assert (= " << dst->smtlib2() << " " << src.front()->smtlib2() << "))";
+        return ss.str();
+    }
+    else {
+        ss << "(assert " << phi_smtlib2(dst, std::vector <Operand *> (src.begin(), src.end())) << ")";
+        return ss.str();
+    }
+}
 
 
 /***********************************************

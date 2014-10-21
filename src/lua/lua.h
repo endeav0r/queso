@@ -27,6 +27,7 @@ LUALIB_API int luaopen_lqueso (lua_State * L);
 int lqueso_x86translate    (lua_State * L);
 int lqueso_x86disassemble  (lua_State * L);
 int lqueso_x86acyclicDepth (lua_State * L);
+int lqueso_x86treeDepth    (lua_State * L);
 
 Instruction * lqueso_instruction_check (lua_State * L, int position);
 int lqueso_instruction_push               (lua_State * L, Instruction * instruction);

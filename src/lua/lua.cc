@@ -25,6 +25,7 @@ static const struct luaL_Reg lqueso_lib_f [] = {
     {"x86translate",    lqueso_x86translate},
     {"x86disassemble",  lqueso_x86disassemble},
     {"x86acyclicDepth", lqueso_x86acyclicDepth},
+    {"x86treeDepth",    lqueso_x86treeDepth},
     {"elf32",           lqueso_elf32_new},
     {NULL, NULL}
 };
@@ -194,6 +195,21 @@ int lqueso_x86acyclicDepth (lua_State * L) {
     lua_pop(L, 3);
 
     QuesoGraph * quesoGraph = X86Disassembler::acyclicDepth(entry, memoryModel, depth);
+
+    lqueso_quesoGraph_absorb(L, quesoGraph);
+
+    return 1;
+}
+
+
+int lqueso_x86treeDepth (lua_State * L) {
+    uint64_t entry = luint64_check(L, 1);
+    MemoryModel * memoryModel = lqueso_memoryModel_check(L, 2);
+    unsigned int depth = luaL_checknumber(L, 3);
+
+    lua_pop(L, 3);
+
+    QuesoGraph * quesoGraph = X86Disassembler::treeDepth(entry, memoryModel, depth);
 
     lqueso_quesoGraph_absorb(L, quesoGraph);
 

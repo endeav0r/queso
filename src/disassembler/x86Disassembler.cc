@@ -162,20 +162,20 @@ QuesoGraph * X86Disassembler :: disassemble (uint64_t entry,
 }
 
 
-class X86DisAcyclicDepth {
+class X86DisTreeDepth {
     public :
         std::stack <uint64_t> callStack;
         InstructionX86 * instruction;
-        X86DisAcyclicDepth (std::stack <uint64_t> callStack, InstructionX86 * instruction)
+        X86DisTreeDepth (std::stack <uint64_t> callStack, InstructionX86 * instruction)
             : callStack (callStack), instruction (instruction) {}
 
 };
 
 
-QuesoGraph * X86Disassembler :: acyclicDepth (uint64_t entry,
-                                              const MemoryModel * memoryModel,
-                                              uint64_t depth) {
-    std::queue <X86DisAcyclicDepth> queue;
+QuesoGraph * X86Disassembler :: treeDepth (uint64_t entry,
+                                           const MemoryModel * memoryModel,
+                                           uint64_t depth) {
+    std::queue <X86DisTreeDepth> queue;
     QuesoGraph * quesoGraph = new QuesoGraph();
     QuesoX86 quesoX86;
 
@@ -186,14 +186,14 @@ QuesoGraph * X86Disassembler :: acyclicDepth (uint64_t entry,
                                                entry);
     ix86 = ix86->copy();
     quesoGraph->absorbInstruction(ix86);
-    queue.push(X86DisAcyclicDepth(std::stack <uint64_t> (), ix86));
+    queue.push(X86DisTreeDepth(std::stack <uint64_t> (), ix86));
 
     for (uint64_t i = 0; i < depth; i++) {
-        std::queue <X86DisAcyclicDepth> newQueue = std::queue <X86DisAcyclicDepth>();
+        std::queue <X86DisTreeDepth> newQueue = std::queue <X86DisTreeDepth>();
 
         // for every instruction at this depth
         while (queue.size() > 0) {
-            X86DisAcyclicDepth x86dis = queue.front();
+            X86DisTreeDepth x86dis = queue.front();
             queue.pop();
 
             ix86 = x86dis.instruction;
@@ -233,13 +233,142 @@ QuesoGraph * X86Disassembler :: acyclicDepth (uint64_t entry,
                     uint64_t ret_addr = ix86->g_pc() + ix86->g_size();
                     std::stack <uint64_t> new_stack = x86dis.callStack;
                     new_stack.push(ret_addr);
-                    newQueue.push(X86DisAcyclicDepth(new_stack, nextIx86));
+                    newQueue.push(X86DisTreeDepth(new_stack, nextIx86));
                 }
                 else
-                    newQueue.push(X86DisAcyclicDepth(x86dis.callStack, nextIx86));
+                    newQueue.push(X86DisTreeDepth(x86dis.callStack, nextIx86));
             }
         }
         queue = newQueue;
+    }
+
+    return quesoGraph;
+}
+
+
+class X86DisAcyclicDepth {
+    public :
+        std::set <uint64_t> * predecessors;
+        std::stack <uint64_t> callStack;
+        InstructionX86 * instruction;
+        X86DisAcyclicDepth (std::set <uint64_t> * predecessors,
+                            std::stack <uint64_t> callStack,
+                            InstructionX86 * instruction)
+            : predecessors (predecessors),
+              callStack (callStack), 
+              instruction (instruction) {}
+
+};
+
+
+
+QuesoGraph * X86Disassembler :: acyclicDepth (uint64_t entry,
+                                              const MemoryModel * memoryModel,
+                                              uint64_t depth) {
+    std::queue <X86DisAcyclicDepth> queue;
+    QuesoGraph * quesoGraph = new QuesoGraph();
+    QuesoX86 quesoX86;
+
+    // disassemble the first instruction, prime the queue
+    MemoryBuffer memoryBuffer = memoryModel->g_bytes(entry, 16);
+    InstructionX86 * ix86 = quesoX86.translate(memoryBuffer.g_data(),
+                                               memoryBuffer.g_size(),
+                                               entry);
+    ix86 = ix86->copy();
+    quesoGraph->absorbInstruction(ix86);
+    queue.push(X86DisAcyclicDepth(new std::set <uint64_t> (), std::stack <uint64_t> (), ix86));
+
+    std::map <uint64_t, InstructionX86 *> insMap;
+    insMap[ix86->g_pc()] = ix86;
+
+    for (uint64_t i = 0; i < depth; i++) {
+        std::queue <X86DisAcyclicDepth> newQueue = std::queue <X86DisAcyclicDepth>();
+
+        // for every instruction at this depth
+        while (queue.size() > 0) {
+            X86DisAcyclicDepth x86dis = queue.front();
+            queue.pop();
+
+            ix86 = x86dis.instruction;
+
+            x86dis.predecessors->insert(ix86->g_pc());
+
+            // get all successors for this instruction
+            std::list <uint64_t> successors = evalEip(ix86);
+
+            // ret is a special case
+            if (strncmp(ix86->queso().c_str(), "ret", 3) == 0) {
+                // get follow on address from call stack
+                if (x86dis.callStack.size() > 0) {
+                    successors.push_back(x86dis.callStack.top());
+                    x86dis.callStack.pop();
+                }
+            }
+
+            if (successors.size() == 0) {
+                delete x86dis.predecessors;
+                continue;
+            }
+
+            bool first = true;
+            std::list <uint64_t> :: iterator it;
+            for (it = successors.begin(); it != successors.end(); it++) {
+                uint64_t address = *it;
+
+                InstructionX86 * nextIx86 = NULL;
+
+                std::set <uint64_t> * predecessors = x86dis.predecessors;
+                if (first == false) {
+                    predecessors = new std::set <uint64_t> ();
+                    *predecessors = *(x86dis.predecessors);
+                }
+                first = false;
+
+                // if this successor is a predecessor
+                // or this successor does not exist yet
+                if (    (x86dis.predecessors->count(address) > 0)
+                     || (insMap.count(address) == 0)) {
+                    MemoryBuffer memoryBuffer = memoryModel->g_bytes(address, 16);
+                    nextIx86 = quesoX86.translate(memoryBuffer.g_data(),
+                                                                   memoryBuffer.g_size(),
+                                                                   address);
+                    nextIx86 = nextIx86->copy();
+
+                    if (insMap.count(address) == 0)
+                        insMap[address] = nextIx86;
+
+                    // add to graph and create the edge
+                    quesoGraph->absorbInstruction(nextIx86);
+                    quesoGraph->absorbEdge(new QuesoEdge(quesoGraph,
+                                                         ix86->g_vIndex(),
+                                                         nextIx86->g_vIndex(),
+                                                         CFT_NORMAL));
+
+                    // call is a special case
+                    if (strncmp(ix86->queso().c_str(), "call", 4) == 0) {
+                        // calculate the address a ret would naturally hit
+                        uint64_t ret_addr = ix86->g_pc() + ix86->g_size();
+                        std::stack <uint64_t> new_stack = x86dis.callStack;
+                        new_stack.push(ret_addr);
+                        newQueue.push(X86DisAcyclicDepth(predecessors, new_stack, nextIx86));
+                    }
+                    else
+                        newQueue.push(X86DisAcyclicDepth(predecessors, x86dis.callStack, nextIx86));
+                }
+                // if this successor is not a predecessor and it already exists
+                else
+                    quesoGraph->absorbEdge(new QuesoEdge(quesoGraph,
+                                                         ix86->g_vIndex(),
+                                                         insMap[address]->g_vIndex(),
+                                                         CFT_NORMAL));
+            }
+        }
+        queue = newQueue;
+    }
+
+    while (queue.size() > 0) {
+        delete queue.front().predecessors;
+        queue.pop();
     }
 
     return quesoGraph;
