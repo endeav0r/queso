@@ -69,24 +69,6 @@ end
 function assertPC (graph)
     local assertions = {}
     for k, instruction in pairs(graph:g_vertices()) do
-        -- assert control flow after every call
-        --[[
-        if string.match(instruction:queso(), 'call') then
-            local successors = instruction:g_successors()
-            for k, successor in pairs(map(function (s) return graphFindIndex(graph, s) end, successors)) do
-                -- get value of eip at start of this instruction
-                local eip = successor:flatten()[2]:operands_read()[1]
-                for k,v in pairs(successor:flatten()) do print('-- ' .. v:queso()) end
-                local assertion =  '(assert (= vIndex_' .. successor:g_vIndex():number() .. 
-                                   ' (ite (= ' .. eip:smtlib2() .. ' #x' ..
-                                   string.format('%08x', successor:g_pc():number()) .. ') true false)))'
-                --table.insert(assertions, assertion)
-                print(assertion)
-                print(successor:g_pc())
-            end
-
-        end
-        ]]--
         for k, subIns in pairs(instruction:flatten()) do
             if string.match(subIns:queso(), 'ite') ~= nil and
                subIns:operand_written():name() == 'eip'
@@ -154,20 +136,21 @@ function solver (quesoGraph, assertions, values, declarations)
     --daFile = daFile .. '(get-model)\n'
     daFile = daFile .. "(get-value (" .. table.concat(values, " ") .. "))"
 
-    local fh = io.open('/tmp/smtlib2.smt2', 'w')
+    local fh = io.open('test3.smt2', 'w')
     fh:write(daFile)
     fh:close()
 end
 
 
-local test2 = lqueso.elf32('test2')
+local elf32 = lqueso.elf32('test3')
 
-local memoryModel = test2:memoryModel()
+local memoryModel = elf32:memoryModel()
+
 
 -- this is where we go to crazy town, replacing PLT entries with ret for certain
 -- relocations
 local reloc_rets = {'puts'}
-local relocs = test2:relocs()
+local relocs = elf32:relocs()
 for name,reloc in pairs(relocs) do
     if inTable(reloc_rets, name) then
         pattern = {}
@@ -181,7 +164,7 @@ for name,reloc in pairs(relocs) do
         print(table.concat(map(tostring, pattern), ' '))
 
         -- search for pattern
-        local plt = test2:sections()['.plt']
+        local plt = elf32:sections()['.plt']
         local needle = 1
         for haystack = plt['address']:number(),plt['address']:number() + plt['size']:number() do
             if memoryModel:g_byte(haystack) == pattern[needle] then
@@ -201,61 +184,16 @@ for name,reloc in pairs(relocs) do
     print(name, reloc, inTable(reloc_rets, name))
 end
 
-print('getting acyclic graph')
-local mainAddress = test2:symbols()['main']['address']
-local quesoGraph = lqueso.x86acyclicDepth(mainAddress, memoryModel, 350)
 
-print('applying ssa')
+
+local quesoGraph = lqueso.x86acyclicDepth(elf32:symbols()['main']['address'], memoryModel, 128)
+
 quesoGraph:ssa(0)
 
-print('gathering eip variables')
-
-function find_last_ret_eip (graph)
-    local last_eip = nil
-    for i,instruction in pairs(graph:g_vertices()) do
-        -- for every ret instruction, find the last eip that's set
-        if instruction:g_pc():number() == 0x804845f then
-        --if string.match(instruction:queso(), 'ret') then
-            local flattened = instruction:flatten()
-            for k, instruction in pairs(flattened) do
-                local operandWritten = instruction:operand_written()
-                if operandWritten ~= nil then 
-                    if operandWritten:name() == 'eip' then
-                        last_eip = operandWritten
-                    end
-                end
-            end
-        end
-    end
-    return last_eip
-end
-
-last_eip = find_last_ret_eip(quesoGraph)
---local sliceGraph = quesoGraph:slice_backward(last_eip)
---sliceGraph:ssa(#sliceGraph:g_vertices() - 1)
-
---local vertices = sliceGraph:g_vertices()
---print(vertices[1])
-
---last_eip = sliceGraph:g_vertices()[1]:operand_written()
---last_eip = find_last_ret_eip(sliceGraph)
-print('last eip => ' .. last_eip:smtlib2())
-
---quesoGraph = sliceGraph
-
--- pass to solver, solving for eip
---local assertions = assertControlFlow(quesoGraph)
-local controlFlowAssertions, declarations = assertControlFlow(quesoGraph)
-local pcAssertions = assertPC(quesoGraph)
-
 local assertions = {}
-for k,v in pairs(controlFlowAssertions) do table.insert(assertions, v) end
-for k,v in pairs(pcAssertions) do table.insert(assertions, v) end
-
---for k,assertion in pairs(assertions) do print(assertion) end
 table.insert(assertions, createAssertion('eip_0', '#x08048430'))
+table.insert(assertions, createAssertion('eip_42', '#xdeadbeef'))
 table.insert(assertions, createAssertion('esp_0', '#xbfff0000'))
---table.insert(assertions, createAssertion('al_57', '#x00'))
 
 table.insert(assertions, createAssertion('(select memory_0 esp_0)', '#x41'))
 table.insert(assertions, createAssertion('(select memory_0 (bvadd esp_0 #x00000001))', '#x41'))
@@ -273,85 +211,10 @@ table.insert(assertions, createAssertion('(select memory_0 (bvadd #x40404045))',
 table.insert(assertions, createAssertion('(select memory_0 (bvadd #x40404046))', '#x40'))
 table.insert(assertions, createAssertion('(select memory_0 (bvadd #x40404047))', '#x40'))
 
-table.insert(assertions, createAssertion(last_eip:smtlib2(), '#xdeadbeef'))
-
-
-table.insert(assertions, '(assert (= vIndex_609 true))')
---table.insert(assertions, createAssertion('notZF_34', '#b0'))
-
-for k, instruction in pairs(quesoGraph:g_vertices()) do
-    if string.match(instruction:queso(), 'ret') ~= nil then
-        local eip = instruction:flatten()[3]:operand_written()
-        if eip:smtlib2() == last_eip:smtlib2() then
-            print(eip:smtlib2())
-            print(instruction:g_vIndex():number())
-        end
-    end
-end
+--table.insert(assertions, createAssertion(last_eip:smtlib2(), '#xdeadbeef'))
 
 solver(quesoGraph, assertions,
-       {last_eip:smtlib2(),
-       'vIndex_18', 'vIndex_19',
-       'vIndex_17', 'vIndex_35', 'vIndex_53', 'vIndex_71',
-       'vIndex_89', 'vIndex_107', 'vIndex_124', 'vIndex_143',
-       'vIndex_609',
-       'rhs_sext_1',
-       'eip_10',
-       'eip_11',
-       'eip_12',
-       
-        'eip_752',
-        'eip_21',
-        'eip_44',
-        'eip_45',
-        'eip_774',
-        'eip_772',
-        'eip_767',
-        'esp_0',
-        'esp_10',
-        'eip_214',
-        'rhs_sext_2',
-        'eip_215',
-        'eip_759',
-        'eax_91',
-        'ZF_52',
-        'notZF_1',  'eip_21',
-        'notZF_2',  'eip_44',
-        'notZF_3',  'eip_67',
-        'notZF_4',  'eip_90',
-        'notZF_5',  'eip_113',
-        'notZF_6',  'eip_136',
-        'notZF_7',  'eip_159',
-        'notZF_8',  'eip_182',
-        'notZF_9',  'eip_205',
-        'notZF_10', 'eip_228',
-        'notZF_11', 'eip_251',
-        'notZF_12', 'eip_274',
-        'notZF_13', 'eip_297',
-        'notZF_14', 'eip_320',
-        'notZF_15', 'eip_343',
-        'notZF_16', 'eip_366',
-        'notZF_17', 'eip_389',
-        'notZF_18', 'eip_412',
-        'notZF_19', 'eip_435',
-        'notZF_20', 'eip_458',
-        'notZF_21', 'eip_481',
-        'notZF_22', 'eip_504',
-        'notZF_23', 'eip_527',
-        'notZF_24', 'eip_550',
-        'notZF_25', 'eip_573',
-        'notZF_26', 'eip_596',
-        'notZF_27', 'eip_619',
-        'notZF_28', 'eip_642',
-        'notZF_29', 'eip_665',
-        'notZF_30', 'eip_688',
-        'notZF_31', 'eip_711',
-        'notZF_32', 'eip_734',
-        'notZF_33', 'eip_757',
-        'notZF_34', 'eip_780',
-        'vIndex_594',
-        'vIndex_595',
-        'eip_759',
+       {
         getValue32Load('memory_0', '#xbfff0000'),
         getValue32Load('memory_0', '#xbfff0008'),
         getValue32Load('memory_0', '#xbfff000c'),
@@ -378,33 +241,9 @@ solver(quesoGraph, assertions,
         getValue32Load('memory_0', '#x40404090'),
         getValue32Load('memory_0', '#x40404094'),
         
-        getValue32Load('memory_0', 'esp_0')},
-        declarations)
---[[
-    local flattened = instruction:flatten()
-    for k, instruction in pairs(flattened) do
-        local operandWritten = instruction:operand_written()
-        if operandWritten ~= nil then
-            if operandWritten:name() == "eip" then
-                table.insert(eips, operandWritten)
-            end
-        end
-    end
-end
+        getValue32Load('memory_0', 'esp_0')})
 
-for k,eip in pairs(eips) do 
-    local sliceGraph = quesoGraph:slice_backward(eip)
-
-    local fh = io.open('eip_graphs/' .. eip:smtlib2() .. '.dot', 'w')
-    fh:write(sliceGraph:dotGraph())
-    fh:close()
-
-    print('eip done: ' .. eip:smtlib2() .. ', num_vertices: ' .. #sliceGraph:g_vertices())
-end
-
-print('total vertices: ', #quesoGraph:g_vertices())
---]]
 print('writing dot graph')
-local fh = io.open('test2.dot', 'w')
+local fh = io.open('test3.dot', 'w')
 fh:write(quesoGraph:dotGraph())
 fh:close()
