@@ -82,6 +82,7 @@ InstructionX86 * QuesoX86 :: translate (const uint8_t * data,
     case UD_Itest   : test(); break;
     case UD_Ixor    : Xor(); break;
     default :
+        throw std::runtime_error(std::string("QuesoX86::translate unsupported mnemonic ") + ud_insn_asm(&ud_obj));
         break;
     }
 
@@ -973,7 +974,7 @@ bool QuesoX86 :: test () {
 bool QuesoX86 :: Xor () {
     Operand * lhs = operandGet(0);
     Operand * rhs = operandGet(1);
-    Variable tmp(32, "tmp");
+    Variable tmp(lhs->g_bits(), "tmp");
 
     Variable OF(1, "OF");
     Variable CF(1, "CF");

@@ -1,7 +1,28 @@
 #include "generic_instructions.h"
 
+#include <iostream>
 #include <sstream>
 #include <vector>
+
+
+InstructionBlock * InstructionBlock :: copy () const {
+    InstructionBlock * block = new InstructionBlock();
+
+    block->copy_depth_instructions(this);
+
+    return block;
+}
+
+
+json_t * InstructionBlock :: json () const {
+    json_t * json = Instruction::json();
+
+    json_object_set(json, "instruction", json_string("block"));
+
+    return json;
+}
+
+
 
 InstructionPhi :: InstructionPhi (const Operand * dst) {
     this->dst = dst->copy();
@@ -28,14 +49,15 @@ std::list <Operand *> InstructionPhi :: operands_read () {
 
 
 std::list <Operand *> InstructionPhi :: operands () {
+
     std::list <Operand *> result;
     std::list <Operand *> :: iterator it;
 
     for (it = src.begin(); it != src.end(); it++) {
-        result.push_back((*it)->copy());
+        result.push_back(*it);
     }
 
-    result.push_back(dst->copy());
+    result.push_back(dst);
 
     return result;
 }
@@ -52,6 +74,7 @@ const std::string InstructionPhi :: queso () const {
     }
 
     ss << ")";
+
     return ss.str();
 }
 
@@ -116,6 +139,27 @@ const std::string InstructionPhi :: smtlib2 () const {
 }
 
 
+json_t * InstructionPhi :: json () const {
+    json_t * json = Instruction::json();
+
+    json_object_set(json, "instruction", json_string("phi"));
+
+    json_object_set(json, "dst", dst->json());
+
+    json_t * operands = json_array();
+
+    std::list <Operand *> :: const_iterator it;
+    for (it = src.begin(); it != src.end(); it++) {
+        Operand * operand = *it;
+        json_array_append(operands, operand->json());
+    }
+
+    json_object_set(json, "src", operands);
+
+    return json;
+}
+
+
 /***********************************************
 * InstructionLoadLE16
 ***********************************************/
@@ -171,6 +215,19 @@ const std::string InstructionLoadLE16 :: queso () const {
 
 InstructionLoadLE16 * InstructionLoadLE16 :: copy () const { 
     return new InstructionLoadLE16(dst, memory, address);
+}
+
+
+json_t * InstructionLoadLE16 :: json () const {
+    json_t * json = Instruction::json();
+
+    json_object_set(json, "instruction", json_string("loadle16"));
+
+    json_object_set(json, "dst",     dst->json());
+    json_object_set(json, "memory",  memory->json());
+    json_object_set(json, "address", address->json());
+
+    return json;
 }
 
 
@@ -286,6 +343,19 @@ const std::string InstructionLoadLE32 :: smtlib2 () const {
 }
 
 
+json_t * InstructionLoadLE32 :: json () const {
+    json_t * json = Instruction::json();
+
+    json_object_set(json, "instruction", json_string("loadle32"));
+
+    json_object_set(json, "dst",     dst->json());
+    json_object_set(json, "memory",  memory->json());
+    json_object_set(json, "address", address->json());
+
+    return json;
+}
+
+
 /***********************************************
 * InstructionStoreLE16
 ***********************************************/
@@ -341,6 +411,19 @@ const std::string InstructionStoreLE16 :: queso () const {
 
 InstructionStoreLE16 * InstructionStoreLE16 :: copy () const {
     return new InstructionStoreLE16(memory, address, value);
+}
+
+
+json_t * InstructionStoreLE16 :: json () const {
+    json_t * json = Instruction::json();
+
+    json_object_set(json, "instruction", json_string("storele16"));
+
+    json_object_set(json, "memory",  memory->json());
+    json_object_set(json, "address", address->json());
+    json_object_set(json, "value",   value->json());
+
+    return json;
 }
 
 
@@ -411,13 +494,8 @@ const std::string InstructionStoreLE32 :: queso () const {
 
 
 InstructionStoreLE32 * InstructionStoreLE32 :: copy () const {
-    return  new InstructionStoreLE32(memory, address, value);
+    return new InstructionStoreLE32(memory, address, value);
 }
-
-
-
-
-
 
 
 std::list <Operand *> InstructionStoreLE32 :: operands_read () {
@@ -449,4 +527,18 @@ const std::string InstructionStoreLE32 :: smtlib2 () const {
        << "(bvadd " << address->smtlib2() << " #x00000003) ((_ extract 31 24) " << value->smtlib2() << ")) "
        << "))";
     return ss.str();
+}
+
+
+json_t * InstructionStoreLE32 :: json () const {
+    json_t * json = Instruction::json();
+
+    json_object_set(json, "instruction", json_string("storele32"));
+
+    json_object_set(json, "mem_dst", mem_dst->json());
+    json_object_set(json, "memory",  memory->json());
+    json_object_set(json, "address", address->json());
+    json_object_set(json, "value",   value->json());
+
+    return json;
 }

@@ -12,7 +12,7 @@ FLAGS = '-O2 -std=c++11 -g'
 #LIB = '-ludis86 -L/usr/local/lib -lSDL2main -lSDL2 -lSDL2_ttf'
 LIB = '-ludis86 -L/usr/local/lib'
 CYGWIN = '-lcygwin -mwindows'
-LINUX = '-llua5.2'
+LINUX = '-llua5.2 -ljansson'
 
 sourceFiles = []
 

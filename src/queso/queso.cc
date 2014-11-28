@@ -37,7 +37,7 @@ std::string operandEmptyString("");
 
 Variable * Variable :: copy () const {
     Variable * nv = new Variable(bits, name);
-    nv->ssa = ssa;
+    nv->ssa = this->ssa;
     return nv;
 }
 
@@ -57,6 +57,17 @@ std::string Variable :: queso () const {
     std::stringstream ss;
     ss << bits << ":" << name << "_" << ssa;
     return ss.str();
+}
+
+json_t * Variable :: json () const {
+    json_t * json = json_object();
+
+    json_object_set(json, "type", json_string("variable"));
+    json_object_set(json, "name", json_string(name.c_str()));
+    json_object_set(json, "bits", json_integer(bits));
+    json_object_set(json, "ssa",  json_integer(ssa));
+
+    return json;
 }
 
 /*********************************************
@@ -86,6 +97,18 @@ std::string Array :: queso () const {
     std::stringstream ss;
     ss << "{" << address_bits << "->" << bits << "}" << name << "_" << ssa;
     return ss.str();
+}
+
+json_t * Array :: json () const {
+    json_t * json = json_object();
+
+    json_object_set(json, "type", json_string("array"));
+    json_object_set(json, "name", json_string(name.c_str()));
+    json_object_set(json, "bits", json_integer(bits));
+    json_object_set(json, "ssa",  json_integer(ssa));
+    json_object_set(json, "address_bits", json_integer(address_bits));
+
+    return json;
 }
 
 /*********************************************
@@ -123,6 +146,16 @@ std::string Constant :: queso () const {
     return ss.str();
 }
 
+json_t * Constant :: json () const {
+    json_t * json = json_object();
+
+    json_object_set(json, "type", json_string("constant"));
+    json_object_set(json, "bits", json_integer(bits));
+    json_object_set(json, "value", json_integer(value));
+
+    return json;
+}
+
 /*********************************************
 * Instruction
 **********************************************/
@@ -145,6 +178,24 @@ std::list <Instruction *> & Instruction :: g_depth_instructions () {
 
 void Instruction :: push_depth_instruction (Instruction * instruction) {
     depth_instructions.push_back(instruction);
+    flattened.clear();
+}
+
+
+bool Instruction :: remove_depth_instruction (Instruction * instruction) {
+    std::list <Instruction *> :: iterator it;
+    for (it = depth_instructions.begin(); it != depth_instructions.end(); it++) {
+        if (*it == instruction) {
+            it = depth_instructions.erase(it);
+            flattened.clear();
+            return true;
+        }
+        if ((*it)->remove_depth_instruction(instruction)) {
+            flattened.clear();
+            return true;
+        }
+    }
+    return false;
 }
 
 
@@ -234,12 +285,11 @@ void Instruction_flatten (std::list <Instruction *> & instructions,
 }
 
 
-std::list <Instruction *> Instruction :: flatten () {
-    std::list <Instruction *> instructions;
+std::list <Instruction *> & Instruction :: flatten () {
+    if (flattened.size() == 0)
+        Instruction_flatten(flattened, this);
 
-    Instruction_flatten(instructions, this);
-
-    return instructions;
+    return flattened;
 }
 
 
@@ -282,6 +332,28 @@ std::string Instruction :: depthSmtlib2 () {
     depthSmtlib2(ss);
 
     return ss.str();
+}
+
+
+json_t * Instruction :: json () const {
+    json_t * json = json_object();
+
+    if (pc_set) {
+        json_object_set(json, "pc", json_integer(pc));
+    }
+
+    if (depth_instructions.size() > 0) {
+        json_t * json_depth = json_array();
+        std::list <Instruction *> :: const_iterator it;
+        for (it = depth_instructions.begin(); it != depth_instructions.end(); it++) {
+            json_array_append(json_depth, (*it)->json());
+        }
+        json_object_set(json, "depth_instructions", json_depth);
+    }
+    
+    json_object_set(json, "queso", json_string(queso().c_str()));
+
+    return json;
 }
 
 
@@ -336,6 +408,16 @@ const std::string InstructionAssign :: queso () const {
 
 InstructionAssign * InstructionAssign :: copy () const {
     return new InstructionAssign(dst, src);
+}
+
+json_t * InstructionAssign :: json () const {
+    json_t * json = Instruction::json();
+
+    json_object_set(json, "instruction", json_string("assign"));
+    json_object_set(json, "dst", dst->json());
+    json_object_set(json, "src", src->json());
+
+    return json;
 }
 
 /*********************************************
@@ -409,6 +491,18 @@ InstructionStore * InstructionStore :: copy () const {
     return new InstructionStore(dstmem, srcmem, address, value);
 }
 
+json_t * InstructionStore :: json () const {
+    json_t * json = Instruction::json();
+
+    json_object_set(json, "instruction", json_string("store"));
+    json_object_set(json, "dstmem", dstmem->json());
+    json_object_set(json, "srcmem", srcmem->json());
+    json_object_set(json, "address", address->json());
+    json_object_set(json, "value", value->json());
+
+    return json;
+}
+
 /*********************************************
 * Instruction : InstructionLoad
 **********************************************/
@@ -460,6 +554,17 @@ const std::string InstructionLoad :: queso () const {
 
 InstructionLoad * InstructionLoad :: copy () const {
     return new InstructionLoad(dst, mem, address);
+}
+
+json_t * InstructionLoad :: json () const {
+    json_t * json = Instruction::json();
+
+    json_object_set(json, "instruction", json_string("store"));
+    json_object_set(json, "dst", dst->json());
+    json_object_set(json, "mem", mem->json());
+    json_object_set(json, "address", address->json());
+
+    return json;
 }
 
 /*********************************************
@@ -521,6 +626,17 @@ InstructionIte * InstructionIte :: copy () const {
     return new InstructionIte(dst, condition, t, e);
 }
 
+json_t * InstructionIte :: json () const {
+    json_t * json = Instruction::json();
+
+    json_object_set(json, "instruction", json_string("ite"));
+    json_object_set(json, "condition", condition->json());
+    json_object_set(json, "t", t->json());
+    json_object_set(json, "e", e->json());
+
+    return json;
+}
+
 /*********************************************
 * Instruction : InstructionSignExtend
 **********************************************/
@@ -574,6 +690,16 @@ const std::string InstructionSignExtend :: queso () const {
 
 InstructionSignExtend * InstructionSignExtend :: copy () const {
     return new InstructionSignExtend(dst, src);
+}
+
+json_t * InstructionSignExtend :: json () const {
+    json_t * json = Instruction::json();
+
+    json_object_set(json, "instruction", json_string("signExtend"));
+    json_object_set(json, "dst", dst->json());
+    json_object_set(json, "src", src->json());
+
+    return json;
 }
 
 /*********************************************
@@ -641,6 +767,48 @@ const std::string InstructionArithmetic :: queso () const {
     return ss.str();
 }
 
+json_t * InstructionArithmetic :: json () const {
+    json_t * json = Instruction::json();
+
+    switch (g_opcode()) {
+    case ADD :
+        json_object_set(json, "instruction", json_string("add"));
+        break;
+    case SUB :
+        json_object_set(json, "instruction", json_string("sub"));
+        break;
+    case MUL :
+        json_object_set(json, "instruction", json_string("mul"));
+        break;
+    case UDIV :
+        json_object_set(json, "instruction", json_string("div"));
+        break;
+    case UMOD :
+        json_object_set(json, "instruction", json_string("mod"));
+        break;
+    case AND :
+        json_object_set(json, "instruction", json_string("and"));
+        break;
+    case OR :
+        json_object_set(json, "instruction", json_string("or"));
+        break;
+    case XOR :
+        json_object_set(json, "instruction", json_string("xor"));
+        break;
+    case SHL :
+        json_object_set(json, "instruction", json_string("shl"));
+        break;
+    case SHR :
+        json_object_set(json, "instruction", json_string("shr"));
+        break;
+    }
+    json_object_set(json, "dst", dst->json());
+    json_object_set(json, "lhs", lhs->json());
+    json_object_set(json, "rhs", rhs->json());
+
+    return json;
+}
+
 /*********************************************
 * Instruction : InstructionCmp
 **********************************************/
@@ -704,4 +872,31 @@ const std::string InstructionCmp :: queso () const {
     ss << QuesoOpcodeStrings[g_opcode()]
        << " " << dst->queso() << " " << lhs->queso() << " " << rhs->queso();
     return ss.str();
+}
+
+json_t * InstructionCmp :: json () const {
+    json_t * json = Instruction::json();
+
+    switch (g_opcode()) {
+    case CMPEQ :
+        json_object_set(json, "instruction", json_string("cmpeq"));
+        break;
+    case CMPLTU :
+        json_object_set(json, "instruction", json_string("cmpltu"));
+        break;
+    case CMPLEU :
+        json_object_set(json, "instruction", json_string("cmpleu"));
+        break;
+    case CMPLTS :
+        json_object_set(json, "instruction", json_string("cmplts"));
+        break;
+    case CMPLES :
+        json_object_set(json, "instruction", json_string("cmples"));
+        break;
+    }
+    json_object_set(json, "dst", dst->json());
+    json_object_set(json, "lhs", lhs->json());
+    json_object_set(json, "rhs", rhs->json());
+
+    return json;
 }

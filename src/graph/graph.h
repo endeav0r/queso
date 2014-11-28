@@ -25,6 +25,8 @@ class Graph {
         const GraphVertex * absorbVertex (GraphVertex * graphVertex, uint64_t vIndex);
         const GraphEdge *   absorbEdge   (GraphEdge * graphEdge);
 
+        void removeVertex (uint64_t vIndex);
+
         uint64_t nextVIndex () { 
             while (vertices.count(_nextVIndex) > 0)
                 _nextVIndex++;

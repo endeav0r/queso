@@ -7,6 +7,7 @@
 #include "luint64.h"
 
 #include <iostream>
+#include <jansson.h>
 #include <memory>
 #include <string>
 
@@ -27,6 +28,8 @@ static const struct luaL_Reg lqueso_lib_f [] = {
     {"x86acyclicDepth", lqueso_x86acyclicDepth},
     {"x86treeDepth",    lqueso_x86treeDepth},
     {"elf32",           lqueso_elf32_new},
+    {"variable",        lqueso_variable},
+    {"constant",        lqueso_constant},
     {NULL, NULL}
 };
 
@@ -42,6 +45,7 @@ static const struct luaL_Reg lqueso_instruction_m [] = {
     {"operands_read",      lqueso_instruction_operands_read},
     {"g_successors",       lqueso_instruction_g_successors},
     {"g_predecessors",     lqueso_instruction_g_predecessors},
+    {"json",               lqueso_instruction_json},
     {NULL, NULL}
 };
 
@@ -74,14 +78,19 @@ static const struct luaL_Reg lqueso_machine_m [] = {
 };
 
 static const struct luaL_Reg lqueso_quesoGraph_m [] = {
-    {"__gc",                lqueso_quesoGraph_gc},
-    {"dotGraph",            lqueso_quesoGraph_dotGraph},
-    {"g_vertices",          lqueso_quesoGraph_g_vertices},
-    {"ssa",                 lqueso_quesoGraph_ssa},
-    {"smtlib2Declarations", lqueso_quesoGraph_smtlib2Declarations},
-    {"smtlib2",             lqueso_quesoGraph_smtlib2},
-    {"slice_backward",      lqueso_quesoGraph_slice_backward},
-    {"slice_backward_thin", lqueso_quesoGraph_slice_backward_thin},
+    {"__gc",                    lqueso_quesoGraph_gc},
+    {"dotGraph",                lqueso_quesoGraph_dotGraph},
+    {"g_vertices",              lqueso_quesoGraph_g_vertices},
+    {"ssa",                     lqueso_quesoGraph_ssa},
+    {"smtlib2Declarations",     lqueso_quesoGraph_smtlib2Declarations},
+    {"smtlib2",                 lqueso_quesoGraph_smtlib2},
+    {"slice_backward",          lqueso_quesoGraph_slice_backward},
+    {"slice_backward_thin",     lqueso_quesoGraph_slice_backward_thin},
+    {"blockize",                lqueso_quesoGraph_blockize},
+    {"json",                    lqueso_quesoGraph_json},
+    {"dead_code_elimination",   lqueso_quesoGraph_dead_code_elimination},
+    {"constant_fold_propagate", lqueso_quesoGraph_constant_fold_propagate},
+    {"replace_operand",         lqueso_quesoGraph_replace_operand},
     {NULL, NULL}
 };
 
@@ -217,6 +226,37 @@ int lqueso_x86treeDepth (lua_State * L) {
 }
 
 
+int lqueso_variable (lua_State * L) {
+    unsigned int bits = luaL_checkinteger(L, 1);
+    const char * name = luaL_checkstring(L, 2);
+
+    Variable variable(bits, name);
+
+    if (lua_isnumber(L, 3))
+        variable.s_ssa(luaL_checkinteger(L, 3));
+
+    lua_pop(L, 3);
+
+    lqueso_operand_push(L, &variable);
+
+    return 1;
+}
+
+
+int lqueso_constant (lua_State * L) {
+    unsigned int bits = luaL_checkinteger(L, 1);
+    uint64_t value = luint64_check(L, 2);
+
+    lua_pop(L, 2);
+
+    Constant constant(bits, value);
+
+    lqueso_operand_push(L, &constant);
+
+    return 1;
+}
+
+
 /**********************************************************
 * lqueso_instruction
 **********************************************************/
@@ -318,9 +358,12 @@ int lqueso_instruction_opcode (lua_State * L) {
 
 int lqueso_instruction_g_pc (lua_State * L) {
     Instruction * instruction = lqueso_instruction_check(L, -1);
-    lua_pop(L, 1);
 
-    luint64_push(L, instruction->g_pc());
+    if (instruction->g_pc_set())
+        luint64_push(L, instruction->g_pc());
+    else
+        lua_pushnil(L);
+
     return 1;
 }
 
@@ -337,7 +380,7 @@ int lqueso_instruction_g_vIndex (lua_State * L) {
 
 int lqueso_instruction_flatten (lua_State * L) {
     Instruction * instruction = lqueso_instruction_check(L, -1);
-    lua_pop(L, 1);
+    //lua_pop(L, 1);
 
     std::list <Instruction *> flattened = instruction->flatten();
     std::list <Instruction *> :: iterator it;
@@ -421,6 +464,24 @@ int lqueso_instruction_g_predecessors (lua_State * L) {
         luint64_push(L, quesoEdge->g_head()->g_vIndex());
         lua_settable(L, -3);
     }
+
+    return 1;
+}
+
+
+int lqueso_instruction_json (lua_State * L) {
+    Instruction * instruction = lqueso_instruction_check(L, -1);
+
+    json_t * json = instruction->json();
+
+    lua_pop(L, 1);
+
+    char * json_string = json_dumps(json, JSON_COMPACT);
+
+    lua_pushstring(L, json_string);
+
+    free(json_string);
+    json_decref(json);
 
     return 1;
 }
@@ -794,11 +855,10 @@ int lqueso_quesoGraph_g_vertices (lua_State * L) {
 
 int lqueso_quesoGraph_ssa (lua_State * L) {
     QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, 1);
-    uint64_t entry_vId = luint64_check(L, 2);
 
-    SpicyQueso::ssa(quesoGraph, entry_vId);
+    SpicyQueso::ssa2(quesoGraph);
 
-    lua_pop(L, 2);
+    lua_pop(L, 1);
 
     return 0;
 }
@@ -861,6 +921,70 @@ int lqueso_quesoGraph_slice_backward_thin (lua_State * L) {
         lqueso_quesoGraph_absorb(L, result);
 
     return 1;
+}
+
+
+int lqueso_quesoGraph_blockize (lua_State * L) {
+    QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, 1);
+
+    SpicyQueso::blockize(quesoGraph);
+
+    lua_pop(L, 1);
+
+    return 0;
+}
+
+
+int lqueso_quesoGraph_json (lua_State * L) {
+    QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, -1);
+
+    json_t * json = quesoGraph->json();
+
+    lua_pop(L, 1);
+
+    char * json_string = json_dumps(json, JSON_COMPACT);
+
+    lua_pushstring(L, json_string);
+
+    free(json_string);
+    json_decref(json);
+
+    return 1;
+}
+
+
+int lqueso_quesoGraph_dead_code_elimination (lua_State * L) {
+    QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, -1);
+
+    SpicyQueso::dead_code_elimination(quesoGraph);
+
+    lua_pop(L, 1);
+
+    return 0;
+}
+
+
+int lqueso_quesoGraph_constant_fold_propagate (lua_State * L) {
+    QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, -1);
+
+    SpicyQueso::constant_fold_propagate(quesoGraph);
+
+    lua_pop(L, 1);
+
+    return 0;
+}
+
+
+int lqueso_quesoGraph_replace_operand (lua_State * L) {
+    QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, 1);
+    Operand * needle = lqueso_operand_check(L, 2);
+    Operand * operand = lqueso_operand_check(L, 3);
+
+    SpicyQueso::replace_operand(quesoGraph, needle, operand);
+
+    lua_pop(L, 3);
+
+    return 0;
 }
 
 

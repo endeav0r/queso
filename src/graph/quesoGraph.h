@@ -35,8 +35,8 @@ class QuesoEdge : public GraphEdge {
 
         ControlFlowType g_type () { return type; }
 
-        Instruction * g_head () { return dynamic_cast<Instruction *>(graph->g_vertex(head)); }
-        Instruction * g_tail () { return dynamic_cast<Instruction *>(graph->g_vertex(tail)); }
+        Instruction * g_head () { return (Instruction *) graph->g_vertex(head); }
+        Instruction * g_tail () { return (Instruction *) graph->g_vertex(tail); }
 };
 
 
@@ -58,6 +58,8 @@ class QuesoGraph : public Graph {
 
         // same as slice_backward, but only returns minimum instructions necessary
         QuesoGraph * slice_backward_thin (Operand * operand);
+
+        json_t * json () const;
 };
 
 

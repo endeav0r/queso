@@ -75,7 +75,7 @@ std::string QuesoGraph :: dotGraph () {
 
 
 Instruction * QuesoGraph :: g_vertex (uint64_t vIndex) {
-    return dynamic_cast<Instruction *>(Graph::g_vertex(vIndex));
+    return (Instruction *) Graph::g_vertex(vIndex);
 }
 
 
@@ -347,4 +347,43 @@ QuesoGraph * QuesoGraph :: slice_backward_thin (Operand * operand) {
     }
 
     return quesoGraph;
+}
+
+
+json_t * QuesoGraph :: json () const {
+    json_t * json = json_object();
+
+    char tmp[64];
+    
+    json_t * instructions = json_object();
+    json_t * json_edges   = json_array();
+
+    std::map <uint64_t, GraphVertex *> :: const_iterator it;
+    for (it = vertices.begin(); it != vertices.end(); it++) {
+        Instruction * instruction = (Instruction *) it->second;
+
+        snprintf(tmp, sizeof(tmp), "%llx", it->first);
+        json_object_set(instructions, tmp, instruction->json());
+
+        std::list <GraphEdge *> :: const_iterator eit;
+        for (eit = instruction->g_edges().begin();
+             eit != instruction->g_edges().end();
+             eit++) {
+
+            GraphEdge * edge = *eit;
+            if (edge->g_head()->g_vIndex() == instruction->g_vIndex()) {
+                json_t * json_edge = json_array();
+                snprintf(tmp, sizeof(tmp), "%llx", edge->g_head()->g_vIndex());
+                json_array_append(json_edge, json_string(tmp));
+                snprintf(tmp, sizeof(tmp), "%llx", edge->g_tail()->g_vIndex());
+                json_array_append(json_edge, json_string(tmp));
+                json_array_append(json_edges, json_edge);
+            }
+        }
+    }
+
+    json_object_set(json, "instructions", instructions);
+    json_object_set(json, "edges", json_edges);
+
+    return json;
 }

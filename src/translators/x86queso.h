@@ -5,6 +5,8 @@
 #include "translator.h"
 
 #include <cstring>
+#include <jansson.h>
+#include <sstream>
 #include <udis86.h>
 
 class InstructionX86 : public Instruction {
@@ -39,7 +41,11 @@ class InstructionX86 : public Instruction {
         const unsigned char * g_bytes () { return bytes; }
         size_t g_size () { return size; }
 
-        const std::string queso () const { return text; }
+        const std::string queso () const {
+            std::stringstream ss;
+            ss << std::hex << g_pc() << " " << text;
+            return ss.str();
+        }
 
         void pdi (Instruction * ins) { push_depth_instruction(ins); }
 
@@ -59,6 +65,15 @@ class InstructionX86 : public Instruction {
                      (unsigned long long) g_pc(),
                      text.c_str());
             return tmp;
+        }
+
+        json_t * json () const {
+            json_t * json = Instruction::json();
+
+            json_object_set(json, "instruction", json_string("x86"));
+            json_object_set(json, "text", json_string(text.c_str()));
+
+            return json;
         }
 };
 

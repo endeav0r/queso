@@ -2,6 +2,17 @@
 #define generic_instructions_HEADER
 
 #include "queso.h"
+#include <jansson.h>
+
+class InstructionBlock : public Instruction {
+    public :
+        virtual ~InstructionBlock () {}
+
+        const std::string queso () const { return "BLOCK"; }
+        InstructionBlock * copy () const;
+
+        json_t * json () const;
+};
 
 
 class InstructionPhi : public Instruction {
@@ -18,8 +29,9 @@ class InstructionPhi : public Instruction {
         void set_src (const std::list <Operand *> operands) {
             clear_src();
             std::list <Operand *> :: const_iterator it;
-            for (it = operands.begin(); it != operands.end(); it++)
-                add_src((*it)->copy());
+            for (it = operands.begin(); it != operands.end(); it++) {
+                add_src(*it);
+            }
         }
 
         void clear_src () {
@@ -38,6 +50,8 @@ class InstructionPhi : public Instruction {
         InstructionPhi * copy () const;
 
         const std::string smtlib2 () const;
+
+        json_t * json () const;
 };
 
 
@@ -63,6 +77,8 @@ class InstructionLoadLE16 : public Instruction {
         const std::string queso () const;
 
         InstructionLoadLE16 * copy () const;
+
+        json_t * json () const;
 };
 
 class InstructionLoadLE32 : public Instruction {
@@ -82,6 +98,29 @@ class InstructionLoadLE32 : public Instruction {
                              const Array * memory,
                              const Operand * address);
 
+        const Variable * g_dst     () { return dst; }
+        const Array *    g_memory  () { return memory; }
+        const Operand *  g_address () { return address; }
+
+        void s_dst (const Variable * dst) {
+            delete this->dst;
+            this->dst = dst->copy();
+        }
+
+        void s_memory (const Array * memory) {
+            delete this->memory;
+            this->memory = memory->copy();
+        }
+
+        void s_address (const Operand * address) {
+            delete this->address;
+            this->address = address->copy();
+        }
+
+        void s_dst     (const Variable & dst)    { s_dst(&dst); }
+        void s_memory  (const Array & memory)    { s_memory(&memory); }
+        void s_address (const Operand & address) { s_address(&address); }
+
         virtual ~InstructionLoadLE32 ();
 
         Operand * operand_written () { return dst; }
@@ -93,6 +132,8 @@ class InstructionLoadLE32 : public Instruction {
         InstructionLoadLE32 * copy () const;
 
         const std::string smtlib2 () const;
+
+        json_t * json () const;
 };
 
 class InstructionStoreLE16 : public Instruction {
@@ -115,6 +156,8 @@ class InstructionStoreLE16 : public Instruction {
         const std::string queso () const;
 
         InstructionStoreLE16 * copy () const;
+
+        json_t * json () const;
 };
 
 class InstructionStoreLE32 : public Instruction {
@@ -135,6 +178,36 @@ class InstructionStoreLE32 : public Instruction {
                               const Operand * value);
         virtual ~InstructionStoreLE32 ();
 
+        const Array *   g_mem_dst () { return mem_dst; }
+        const Array *   g_memory  () { return memory; }
+        const Operand * g_address () { return address; }
+        const Operand * g_value   () { return value; }
+
+        void s_mem_dst (const Array * mem_dst) {
+            delete this->mem_dst;
+            this->mem_dst = mem_dst->copy();
+        }
+
+        void s_memory (const Array * memory) {
+            delete this->memory;
+            this->memory = memory->copy();
+        }
+
+        void s_address (const Operand * address) {
+            delete this->address;
+            this->address = address->copy();
+        }
+
+        void s_value (const Operand * value) {
+            delete this->value;
+            this->value = value->copy();
+        }
+
+        void s_mem_dst (const Array & mem_dst)   { s_mem_dst(&mem_dst); }
+        void s_memory  (const Array & memory)    { s_memory(&memory); }
+        void s_address (const Operand & address) { s_address(&address); }
+        void s_value   (const Operand & value)   { s_value(&value); }
+
         Operand * operand_written () { return mem_dst; }
         std::list <Operand *> operands_read ();
         std::list <Operand *> operands ();
@@ -144,6 +217,8 @@ class InstructionStoreLE32 : public Instruction {
         InstructionStoreLE32 * copy () const;
 
         const std::string smtlib2 () const;
+
+        json_t * json () const;
 };
 
 #endif

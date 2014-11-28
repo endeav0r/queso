@@ -4,6 +4,7 @@
 #include <inttypes.h>
 #include <list>
 #include <string>
+#include <jansson.h>
 #include "graph/graph.h"
 
 enum OperandType { VARIABLE, CONSTANT, ARRAY };
@@ -56,6 +57,7 @@ class Operand {
         virtual std::string queso               () const = 0;
         virtual OperandType g_type              () const = 0;
         virtual Operand *   copy                () const = 0;
+        virtual json_t *    json                () const = 0;
 };
 
 class Variable : public Operand {
@@ -73,6 +75,7 @@ class Variable : public Operand {
         std::string smtlib2 () const;
         std::string smtlib2_declaration () const;
         std::string queso () const;
+        json_t *    json  () const;
 };
 
 class Array : public Operand {
@@ -92,6 +95,7 @@ class Array : public Operand {
         std::string smtlib2 () const;
         std::string smtlib2_declaration () const;
         std::string queso () const;
+        json_t *    json  () const;
 };
 
 class Constant : public Operand {
@@ -100,6 +104,8 @@ class Constant : public Operand {
     public :
         Constant (unsigned int bits, uint64_t value)
             : Operand (bits), value (value) {}
+        Constant ()
+            : Operand (0), value (0) {}
 
         OperandType g_type  () const { return CONSTANT; }
         uint64_t    g_value () const { return value; }
@@ -109,6 +115,7 @@ class Constant : public Operand {
         std::string smtlib2 () const;
         std::string smtlib2_declaration () const;
         std::string queso () const;
+        json_t *    json  () const;
 };
 
 class Instruction : public GraphVertex {
@@ -123,6 +130,8 @@ class Instruction : public GraphVertex {
 
         void depthSmtlib2Declarations (std::stringstream & ss);
         void depthSmtlib2             (std::stringstream & ss);
+
+        std::list <Instruction *> flattened;
     protected :
         void copy_depth_instructions (const Instruction * srcInstruction);
     public :
@@ -142,12 +151,14 @@ class Instruction : public GraphVertex {
             }
         };
 
+        void s_pc (uint64_t pc) { this->pc = pc; }
         bool        g_pc_set () const { return pc_set; }
         uint64_t    g_pc     () const { return pc; }
         QuesoOpcode g_opcode () const { return opcode; }
 
         std::list <Instruction *> & g_depth_instructions ();
-        void push_depth_instruction (Instruction * instruction);
+        void push_depth_instruction   (Instruction * instruction);
+        bool remove_depth_instruction (Instruction * instruction);
         
         virtual Operand * operand_written () { return NULL; }
         virtual std::list <Operand *> operands_read () { return std::list <Operand *>(); }
@@ -155,7 +166,7 @@ class Instruction : public GraphVertex {
 
         std::list <Instruction *> var_dominators (std::string name);
 
-        std::list <Instruction *> flatten ();
+        std::list <Instruction *> & flatten ();
         
         virtual const std::string smtlib2 () const { return ""; }
         virtual const std::string queso   () const = 0;
@@ -164,6 +175,8 @@ class Instruction : public GraphVertex {
 
         std::string depthSmtlib2Declarations ();
         std::string depthSmtlib2 ();
+
+        virtual json_t * json () const;
 };
 
 class InstructionAssign : public Instruction {
@@ -180,6 +193,19 @@ class InstructionAssign : public Instruction {
         const Variable * g_dst () const { return dst; }
         const Operand  * g_src () const { return src; }
 
+        void s_dst (const Variable * dst) {
+            delete this->dst;
+            this->dst = dst->copy();
+        }
+
+        void s_src (const Operand * src) {
+            delete this->src;
+            this->src = src->copy();
+        }
+
+        inline void s_dst (const Variable & dst) { s_dst(&dst); }
+        inline void s_src (const Operand & src) { s_src(&src); }
+
         Operand * operand_written () { return dst; }
         std::list <Operand *> operands_read ();
         std::list <Operand *> operands ();
@@ -188,6 +214,8 @@ class InstructionAssign : public Instruction {
         const std::string queso   () const;
 
         InstructionAssign * copy () const;
+
+        json_t * json () const;
 };
 
 class InstructionStore : public Instruction {
@@ -212,6 +240,31 @@ class InstructionStore : public Instruction {
         const Operand * g_address () const { return address; }
         const Operand * g_value   () const { return value; }
 
+        void s_dstmem (const Array * dstmem) {
+            delete this->dstmem;
+            this->dstmem = dstmem->copy();
+        }
+
+        void s_srcmem (const Array * srcmem) {
+            delete this->srcmem;
+            this->srcmem = srcmem->copy();
+        }
+
+        void s_address (const Operand * address) {
+            delete this->address;
+            this->address = address->copy();
+        }
+
+        void s_value (const Operand * value) {
+            delete this->value;
+            this->value = value->copy();
+        }
+
+        inline void s_dstmem (const Array & dstmem) { s_dstmem(&dstmem); }
+        inline void s_srcmem (const Array & srcmem) { s_srcmem(&srcmem); }
+        inline void s_address (const Operand & address) { s_address(&address); }
+        inline void s_value (const Operand & value) { s_value(&value); }
+
         Operand * operand_written () { return dstmem; }
         std::list <Operand *> operands_read ();
         std::list <Operand *> operands ();
@@ -220,6 +273,8 @@ class InstructionStore : public Instruction {
         const std::string smtlib2 () const;
 
         InstructionStore * copy () const;
+
+        json_t * json () const;
 };
 
 class InstructionLoad : public Instruction {
@@ -235,6 +290,25 @@ class InstructionLoad : public Instruction {
         const Array *    g_mem     () const { return mem; }
         const Operand *  g_address () const { return address; }
 
+        void s_dst (const Variable * dst) {
+            delete this->dst;
+            this->dst = dst->copy();
+        }
+
+        void s_mem (const Array * mem) {
+            delete this->mem;
+            this->mem = mem->copy();
+        }
+
+        void s_address (const Operand * address) { 
+            delete this->address;
+            this->address = address->copy();
+        }
+
+        inline void s_dst (const Variable & dst) { s_dst(&dst); }
+        inline void s_mem (const Array & mem) { s_mem(&mem); }
+        inline void s_address (const Operand & address) { s_address(&address); }
+
         Operand * operand_written () { return dst; }
         std::list <Operand *> operands_read ();
         std::list <Operand *> operands ();
@@ -243,6 +317,8 @@ class InstructionLoad : public Instruction {
         const std::string smtlib2 () const;
 
         InstructionLoad * copy () const;
+        
+        json_t * json () const;
 };
 
 class InstructionIte : public Instruction {
@@ -263,6 +339,31 @@ class InstructionIte : public Instruction {
         const Operand  * g_t ()         const { return t; }
         const Operand  * g_e ()         const { return e; }
 
+        void s_dst (const Variable * dst) {
+            delete this->dst;
+            this->dst = dst->copy();
+        }
+
+        void s_condition (const Operand * condition) {
+            delete this->condition;
+            this->condition = condition->copy();
+        }
+
+        void s_t (const Operand * t) {
+            delete this->t;
+            this->t = t->copy();
+        }
+
+        void s_e (const Operand * e) {
+            delete this->e;
+            this->e = e->copy();
+        }
+
+        inline void s_dst (const Variable & dst) { s_dst(&dst); }
+        inline void s_condition (const Operand & condition) { s_condition(&condition); }
+        inline void s_t (const Operand & t) { s_t(&t); }
+        inline void s_e (const Operand & e) { s_e(&e); }
+
         Operand * operand_written () { return dst; }
         std::list <Operand *> operands_read ();
         std::list <Operand *> operands ();
@@ -271,6 +372,8 @@ class InstructionIte : public Instruction {
         const std::string smtlib2 () const;
 
         InstructionIte * copy () const;
+        
+        json_t * json () const;
 };
 
 class InstructionSignExtend : public Instruction {
@@ -285,6 +388,19 @@ class InstructionSignExtend : public Instruction {
         const Variable * g_dst () const { return dst; }
         const Operand  * g_src () const { return src; }
 
+        void s_dst (const Variable * dst) {
+            delete this->dst;
+            this->dst = dst->copy();
+        }
+
+        void s_src (const Operand * src) {
+            delete this->src;
+            this->src = src->copy();
+        }
+
+        inline void s_dst (const Variable & dst) { s_dst(&dst); }
+        inline void s_src (const Operand & src) { s_src(&src); }
+
         Operand * operand_written () { return dst; }
         std::list <Operand *> operands_read ();
         std::list <Operand *> operands ();
@@ -293,6 +409,8 @@ class InstructionSignExtend : public Instruction {
         const std::string smtlib2 () const;
 
         InstructionSignExtend * copy () const;
+        
+        json_t * json () const;
 };
 
 class InstructionArithmetic : public Instruction {
@@ -319,12 +437,33 @@ class InstructionArithmetic : public Instruction {
         const Operand  * g_lhs () const { return lhs; }
         const Operand  * g_rhs () const { return rhs; }
 
+        void s_dst (const Variable * dst) {
+            delete this->dst;
+            this->dst = dst->copy();
+        }
+
+        void s_lhs (const Operand * lhs) {
+            delete this->lhs;
+            this->lhs = lhs->copy();
+        }
+
+        void s_rhs (const Operand * rhs) {
+            delete this->rhs;
+            this->rhs = rhs->copy();
+        }
+
+        inline void s_dst (const Variable & dst) { s_dst(&dst); }
+        inline void s_lhs (const Operand & lhs) { s_lhs(&lhs); }
+        inline void s_rhs (const Operand & rhs) { s_rhs(&rhs); }
+
         Operand * operand_written () { return dst; }
         std::list <Operand *> operands_read ();
         std::list <Operand *> operands ();
 
         const std::string queso   () const;
         const std::string smtlib2 () const;
+        
+        json_t * json () const;
 };
 
 class InstructionAdd : public InstructionArithmetic {
@@ -451,12 +590,33 @@ class InstructionCmp : public Instruction {
         const Operand *  g_lhs () const { return lhs; }
         const Operand *  g_rhs () const { return rhs; }
 
+        void s_dst (const Variable * dst) {
+            delete this->dst;
+            this->dst = dst->copy();
+        }
+
+        void s_lhs (const Operand * lhs) {
+            delete this->lhs;
+            this->lhs = lhs->copy();
+        }
+
+        void s_rhs (const Operand * rhs) {
+            delete this->rhs;
+            this->rhs = rhs->copy();
+        }
+
+        inline void s_dst (const Variable & dst) { s_dst(&dst); }
+        inline void s_lhs (const Operand & lhs) { s_lhs(&lhs); }
+        inline void s_rhs (const Operand & rhs) { s_rhs(&rhs); }
+
         Operand * operand_written () { return dst; }
         std::list <Operand *> operands_read ();
         std::list <Operand *> operands ();
 
         const std::string queso   () const;
         const std::string smtlib2 () const;
+        
+        json_t * json () const;
 };
 
 class InstructionCmpEq : public InstructionCmp {

@@ -246,12 +246,42 @@ QuesoGraph * X86Disassembler :: treeDepth (uint64_t entry,
 }
 
 
+bool isPredecessor (Instruction * instruction, uint64_t vIndex) {
+    std::set <uint64_t> touched;
+    std::queue <Instruction *> queue;
+
+    queue.push(instruction);
+    while (queue.size() > 0) {
+        while ((queue.size() > 0) && (touched.count(queue.front()->g_vIndex()) > 0))
+            queue.pop();
+        if (queue.size() == 0)
+            break;
+
+        Instruction * instruction = queue.front();
+        queue.pop();
+        touched.insert(instruction->g_vIndex());
+
+        if (instruction->g_vIndex() == vIndex)
+            return true;
+
+        std::list <GraphEdge *> predecessors = instruction->g_predecessors();
+        std::list <GraphEdge *> :: iterator it;
+        for (it = predecessors.begin(); it != predecessors.end(); it++) {
+            Instruction * instruction = dynamic_cast<Instruction *>((*it)->g_head());
+            queue.push(instruction);
+        }
+    }
+
+    return false;
+}
+
+
 class X86DisAcyclicDepth {
     public :
-        std::set <uint64_t> * predecessors;
+        std::set <uint64_t> predecessors;
         std::stack <uint64_t> callStack;
         InstructionX86 * instruction;
-        X86DisAcyclicDepth (std::set <uint64_t> * predecessors,
+        X86DisAcyclicDepth (std::set <uint64_t> predecessors,
                             std::stack <uint64_t> callStack,
                             InstructionX86 * instruction)
             : predecessors (predecessors),
@@ -259,6 +289,32 @@ class X86DisAcyclicDepth {
               instruction (instruction) {}
 
 };
+
+
+
+bool verifyAcyclic (Instruction * instruction) {
+    std::set <uint64_t> touched;
+    std::queue <Instruction *> queue;
+
+    while (queue.size() > 0) {
+        while ((queue.size() > 0) && (touched.count(queue.front()->g_vIndex()) > 0))
+            queue.pop();
+        Instruction * instruction = queue.front();
+        queue.pop();
+
+        std::list <GraphEdge *> successors = instruction->g_successors();
+        std::list <GraphEdge *> :: iterator it;
+        for (it = successors.begin(); it != successors.end(); it++) {
+            Instruction * successor = dynamic_cast<Instruction *>((*it)->g_tail());
+            if (touched.count(successor->g_vIndex()) > 0) {
+                std::cerr << "cycle detected " << std::hex
+                          << instruction->g_pc() << " | " << instruction->g_vIndex() << " => "
+                          << successor->g_pc() << " | " << successor->g_vIndex() << std::endl;
+            }
+            queue.push(successor);
+        }
+    }
+}
 
 
 
@@ -276,7 +332,7 @@ QuesoGraph * X86Disassembler :: acyclicDepth (uint64_t entry,
                                                entry);
     ix86 = ix86->copy();
     quesoGraph->absorbInstruction(ix86);
-    queue.push(X86DisAcyclicDepth(new std::set <uint64_t> (), std::stack <uint64_t> (), ix86));
+    queue.push(X86DisAcyclicDepth(std::set <uint64_t> (), std::stack <uint64_t> (), ix86));
 
     std::map <uint64_t, InstructionX86 *> insMap;
     insMap[ix86->g_pc()] = ix86;
@@ -291,7 +347,7 @@ QuesoGraph * X86Disassembler :: acyclicDepth (uint64_t entry,
 
             ix86 = x86dis.instruction;
 
-            x86dis.predecessors->insert(ix86->g_pc());
+            x86dis.predecessors.insert(ix86->g_pc());
 
             // get all successors for this instruction
             std::list <uint64_t> successors = evalEip(ix86);
@@ -305,37 +361,24 @@ QuesoGraph * X86Disassembler :: acyclicDepth (uint64_t entry,
                 }
             }
 
-            if (successors.size() == 0) {
-                delete x86dis.predecessors;
-                continue;
-            }
 
-            bool first = true;
             std::list <uint64_t> :: iterator it;
             for (it = successors.begin(); it != successors.end(); it++) {
                 uint64_t address = *it;
 
                 InstructionX86 * nextIx86 = NULL;
 
-                std::set <uint64_t> * predecessors = x86dis.predecessors;
-                if (first == false) {
-                    predecessors = new std::set <uint64_t> ();
-                    *predecessors = *(x86dis.predecessors);
-                }
-                first = false;
-
                 // if this successor is a predecessor
                 // or this successor does not exist yet
-                if (    (x86dis.predecessors->count(address) > 0)
-                     || (insMap.count(address) == 0)) {
+                if (    (insMap.count(address) == 0)
+                     || (isPredecessor(ix86, insMap[address]->g_vIndex()))) {
                     MemoryBuffer memoryBuffer = memoryModel->g_bytes(address, 16);
                     nextIx86 = quesoX86.translate(memoryBuffer.g_data(),
                                                                    memoryBuffer.g_size(),
                                                                    address);
                     nextIx86 = nextIx86->copy();
 
-                    if (insMap.count(address) == 0)
-                        insMap[address] = nextIx86;
+                    insMap[address] = nextIx86;
 
                     // add to graph and create the edge
                     quesoGraph->absorbInstruction(nextIx86);
@@ -350,10 +393,10 @@ QuesoGraph * X86Disassembler :: acyclicDepth (uint64_t entry,
                         uint64_t ret_addr = ix86->g_pc() + ix86->g_size();
                         std::stack <uint64_t> new_stack = x86dis.callStack;
                         new_stack.push(ret_addr);
-                        newQueue.push(X86DisAcyclicDepth(predecessors, new_stack, nextIx86));
+                        newQueue.push(X86DisAcyclicDepth(x86dis.predecessors, new_stack, nextIx86));
                     }
                     else
-                        newQueue.push(X86DisAcyclicDepth(predecessors, x86dis.callStack, nextIx86));
+                        newQueue.push(X86DisAcyclicDepth(x86dis.predecessors, x86dis.callStack, nextIx86));
                 }
                 // if this successor is not a predecessor and it already exists
                 else
@@ -366,10 +409,7 @@ QuesoGraph * X86Disassembler :: acyclicDepth (uint64_t entry,
         queue = newQueue;
     }
 
-    while (queue.size() > 0) {
-        delete queue.front().predecessors;
-        queue.pop();
-    }
+    verifyAcyclic(quesoGraph->g_vertex(0));
 
     return quesoGraph;
 }

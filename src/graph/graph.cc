@@ -69,6 +69,17 @@ Graph :: ~Graph () {
 }
 
 
+void Graph :: removeVertex (uint64_t vIndex) {
+    if (vertices.count(vIndex) > 0) {
+        while (vertices[vIndex]->g_edges().size() > 0)
+            delete vertices[vIndex]->g_edges().front();
+        vertices.erase(vIndex);
+    }
+    else
+        printf("Graph :: removeVertex %llx not found\n", vIndex);
+}
+
+
 const GraphVertex * Graph :: absorbVertex (GraphVertex * graphVertex) {
     graphVertex->setGraph(this);
     vertices[graphVertex->g_vIndex()] = graphVertex;
