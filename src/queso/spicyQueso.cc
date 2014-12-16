@@ -1059,9 +1059,92 @@ std::map <uint64_t, std::set <uint64_t>> SpicyQueso :: dominator_map (QuesoGraph
 }
 
 
+// sets the immediate dominator of the top node to itself
+// this is also a lazy and inefficient way of doing this
+std::map <uint64_t, uint64_t> SpicyQueso :: idominator_map (QuesoGraph * quesoGraph,
+                                 std::map <uint64_t, std::set <uint64_t>> & dom_map) {
+    Graph * dominatorTree = new Graph();
+
+    // create the dominatorTree
+    std::map <uint64_t, GraphVertex *> :: iterator mit;
+    for (mit = quesoGraph->g_vertices().begin();
+         mit != quesoGraph->g_vertices().end();
+         mit++) {
+        dominatorTree->absorbVertex(new GraphVertex(), mit->first);
+    }
+
+    // begin by finding the top of the graph
+    std::queue <uint64_t> domTreeQueue;
+
+    for (mit = quesoGraph->g_vertices().begin();
+         mit != quesoGraph->g_vertices().end();
+         mit++) {
+        std::list <GraphEdge *> predecessors = mit->second->g_predecessors();
+
+        // vertices that point to themselves
+        while (    (predecessors.size() > 0)
+                && (predecessors.front()->g_head()->g_vIndex() == mit->first)) {
+            predecessors.pop_front();
+        }
+
+        if (predecessors.size() == 0)
+            continue;
+
+        // add one, and only one, predecessor to tree-itize
+        dominatorTree->absorbEdge(new GraphEdge(dominatorTree,
+                                                predecessors.front()->g_head()->g_vIndex(),
+                                                predecessors.front()->g_tail()->g_vIndex()));
+
+        domTreeQueue.push(mit->first);
+    }
+
+    // for every vertex in domTreeQueue, we will walk upwards in the graph
+    // until we find the first vertex which is a dominator of the given vertex
+    while (domTreeQueue.size() > 0) {
+        uint64_t vIndex = domTreeQueue.front();
+        domTreeQueue.pop();
+
+        GraphVertex * vertex = dominatorTree->g_vertex(vIndex);
+        GraphVertex * nextVertex = vertex;
+        while (true) {
+            if (nextVertex->g_predecessors().size() == 0)
+                break;
+            uint64_t parentIndex = nextVertex->g_predecessors().front()->g_head()->g_vIndex();
+            if (dom_map[vIndex].count(parentIndex) > 0) {
+                // delete the original edge from this vertex to its direct predecessor
+                delete vertex->g_predecessors().front();
+                // insert a new edge from this parent to this vertex
+                dominatorTree->absorbEdge(new GraphEdge(dominatorTree, parentIndex, vIndex));
+                break;
+            }
+            else {
+                nextVertex = dominatorTree->g_vertex(parentIndex);
+            }
+        }
+    }
+
+    // for every vertex in the dominatorTree, its immediate dominator is its parent
+    std::map <uint64_t, uint64_t> idom_map;
+    for (mit = dominatorTree->g_vertices().begin();
+         mit != dominatorTree->g_vertices().end();
+         mit++) {
+        std::list <GraphEdge *> predecessors = mit->second->g_predecessors();
+        if (predecessors.size() == 0)
+            idom_map[mit->first] = mit->first;
+        else
+            idom_map[mit->first] = predecessors.front()->g_head()->g_vIndex();
+    }
+
+    delete dominatorTree;
+
+    return idom_map;
+}
+
+
 std::map <uint64_t, std::set <uint64_t>> SpicyQueso :: predecessor_map (QuesoGraph * quesoGraph) {
     std::map <uint64_t, std::set <uint64_t>> pred_map;
     std::stack <uint64_t> stack;
+    std::set <uint64_t> done;
 
     std::map <uint64_t, GraphVertex *> :: iterator mit;
     for (mit = quesoGraph->g_vertices().begin();
@@ -1077,6 +1160,7 @@ std::map <uint64_t, std::set <uint64_t>> SpicyQueso :: predecessor_map (QuesoGra
 
             if (predecessors.size() == 0) {
                 pred_map[vIndex] = std::set <uint64_t> ();
+                done.insert(vIndex);
                 continue;
             }
 
@@ -1090,18 +1174,18 @@ std::map <uint64_t, std::set <uint64_t>> SpicyQueso :: predecessor_map (QuesoGra
                 if (predecessor_vIndex == vIndex)
                     continue;
 
-                if (pred_map.count(predecessor_vIndex) == 0) {
-                    if (predecessorsSet == false)
+                if (done.count(predecessor_vIndex) == 0) {
+                    if (predecessorsSet == true)
                         stack.push(vIndex);
+                    predecessorsSet = false;
                     stack.push(predecessor_vIndex);
-                    continue;
                 }
             }
 
             if (predecessorsSet == false)
                 continue;
 
-            pred_map[vIndex] = std::set <uint64_t> ();
+            //pred_map[vIndex] = std::set <uint64_t> ();
 
             for (it = predecessors.begin(); it != predecessors.end(); it++) {
                 uint64_t predecessor_vIndex = (*it)->g_head()->g_vIndex();
@@ -1112,10 +1196,188 @@ std::map <uint64_t, std::set <uint64_t>> SpicyQueso :: predecessor_map (QuesoGra
                     continue;
                 }
 
-                pred_map[vIndex].insert(pred_map[predecessor_vIndex].begin(),
-                                        pred_map[predecessor_vIndex].end());
+                pred_map[vIndex].insert(predecessor_vIndex);
+                for (auto iit = pred_map[predecessor_vIndex].begin();
+                     iit != pred_map[predecessor_vIndex].end();
+                     iit++)
+                    pred_map[vIndex].insert(*iit);
             }
+
+            done.insert(vIndex);
         }
     }
     return pred_map;
+}
+
+
+template <class T>
+std::set <T> set_intersection (std::set <T> & a, std::set <T> & b) {
+    std::set <T> result;
+    typename std::set <T> :: iterator it;
+    for (it = a.begin(); it != a.end(); it++) {
+        if (b.count(*it) > 0)
+            result.insert(*it);
+    }
+    return result;
+}
+
+
+template <class T>
+std::set <T> symmetric_difference (std::set <T> & a, std::set <T> & b) {
+    std::set <T> result;
+    typename std::set <T> :: iterator it;
+    for (it = a.begin(); it != a.end(); it++) {
+        if (b.count(*it) == 0)
+            result.insert(*it);
+    }
+    for (it = b.begin(); it != b.end(); it++) {
+        if (a.count(*it) == 0)
+            result.insert(*it);
+    }
+    return result;
+}
+
+
+std::list <std::set <uint64_t>> enumerate_paths (Graph * graph,
+                                                 uint64_t head,
+                                                 uint64_t tail,
+                     std::map <uint64_t, std::set <uint64_t>> & pred_map) {
+    std::list <std::set <uint64_t>> result;
+    if (head == tail) {
+        std::set <uint64_t> tmp;
+        tmp.insert(head);
+        result.push_back(tmp);
+        return result;
+    }
+
+    //printf("%lld -> %lld\n", head, tail);
+
+    // get current vertex
+    GraphVertex * vertex = graph->g_vertex(head);
+
+    // get all successors
+    std::list <GraphEdge *> successors = vertex->g_successors();
+    std::list <GraphEdge *> :: iterator it;
+    for (it = successors.begin(); it != successors.end(); it++) {
+        // if this successor is not a predecessor of tail, continue
+        uint64_t successor_vIndex = (*it)->g_tail()->g_vIndex();
+
+        if (successor_vIndex == tail) {
+            std::set <uint64_t> tmp;
+            tmp.insert(head);
+            result.push_back(tmp);
+            continue;
+        }
+
+        if (pred_map[tail].count(successor_vIndex) == 0) {
+            continue;
+        }
+
+        // successor is a predecessor of tail
+        // get a list of all paths from this successor to tail
+        std::list <std::set <uint64_t>> tmp = enumerate_paths(graph,
+                                                              successor_vIndex,
+                                                              tail,
+                                                              pred_map);
+
+        // for each of these paths
+        std::list <std::set <uint64_t>> :: iterator tit;
+        for (tit = tmp.begin(); tit != tmp.end(); tit++) {
+            // add this vertex to the path
+            (*tit).insert(head);
+            // this this path to the result paths
+            result.push_back(*tit);
+        }
+    }
+
+    return result;
+}
+
+
+QuesoGraph * SpicyQueso :: shadowGraph (QuesoGraph * quesoGraph) {
+    QuesoGraph * shadowGraph = new QuesoGraph();
+
+    std::map <uint64_t, std::set <uint64_t>> dom_map  = dominator_map(quesoGraph);
+    std::map <uint64_t, std::set <uint64_t>> pred_map = predecessor_map(quesoGraph);
+    std::map <uint64_t, uint64_t> idom_map = idominator_map(quesoGraph, dom_map);
+
+    std::map <uint64_t, GraphVertex *> ::iterator mit;
+    // for every vertex in the graph
+    for (mit = quesoGraph->g_vertices().begin();
+         mit != quesoGraph->g_vertices().end();
+         mit++) {
+        Instruction * vertex = (Instruction *) mit->second;
+        uint64_t vIndex = mit->first;
+
+        // get all direct predecessors
+        std::list <GraphEdge *> predecessors = vertex->g_predecessors();
+
+        // create a set of all direct predecessors of vertex
+        std::set <uint64_t> directPredecessors;
+        std::list <GraphEdge *> :: iterator pit;
+        for (pit = predecessors.begin(); pit != predecessors.end(); pit++) {
+            directPredecessors.insert((*pit)->g_head()->g_vIndex());
+        }
+
+        // enumerate all paths from this vertex's idominator to it
+        std::list <std::set <uint64_t>> paths = enumerate_paths(quesoGraph,
+                                                                idom_map[vIndex],
+                                                                vIndex,
+                                                                pred_map);
+
+        // create conjunctions of true variables based on directPredecessors
+        std::set <std::set <uint64_t>> pathConjunctions;
+        std::list <std::set <uint64_t>> :: iterator ppit;
+        for (ppit = paths.begin(); ppit != paths.end(); ppit++) {
+            pathConjunctions.insert(set_intersection(directPredecessors, *ppit));
+        }
+
+        // create the shadow instruction
+        std::stringstream vertexName;
+        vertexName << "v" << vIndex;
+        Variable * dst = new Variable(1, vertexName.str());
+        InstructionShadow * instructionShadow = new InstructionShadow(dst);
+        delete dst;
+
+        // create each of the conjunctions
+        std::set <std::set <uint64_t>> :: iterator pCit;
+        for (pCit = pathConjunctions.begin(); pCit != pathConjunctions.end(); pCit++) {
+            std::set <uint64_t> trues = *pCit;
+            std::set <OperandShadow *> conjunction;
+            // for each of the direct predecessors
+            std::set <uint64_t> :: iterator dit;
+            for (dit = directPredecessors.begin(); dit != directPredecessors.end(); dit++) {
+                std::stringstream operandName;
+                operandName << "v" << (*dit);
+                // add the direct predecessor based on its occurence in trues
+                if (trues.count(*dit) == 1) {
+                    conjunction.insert(new OperandShadow(operandName.str(), true));
+                }
+                else {
+                    conjunction.insert(new OperandShadow(operandName.str(), false));
+                }
+            }
+            instructionShadow->addConjunction(conjunction);
+        }
+
+        // add shadow instruction to the graph
+        shadowGraph->absorbInstruction(instructionShadow, vIndex);
+    }
+
+    // add all the graph edges to shadow graph
+    for (mit = quesoGraph->g_vertices().begin();
+         mit != quesoGraph->g_vertices().end();
+         mit++) {
+        std::list <GraphEdge *> successors = mit->second->g_successors();
+        std::list <GraphEdge *> :: iterator it;
+        for (it = successors.begin(); it != successors.end(); it++) {
+            GraphEdge * graphEdge = *it;
+            shadowGraph->absorbEdge(new QuesoEdge(shadowGraph,
+                                                  graphEdge->g_head()->g_vIndex(),
+                                                  graphEdge->g_tail()->g_vIndex(),
+                                                  CFT_NORMAL));
+        }
+    }
+
+    return shadowGraph;
 }

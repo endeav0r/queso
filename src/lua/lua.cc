@@ -91,6 +91,7 @@ static const struct luaL_Reg lqueso_quesoGraph_m [] = {
     {"dead_code_elimination",   lqueso_quesoGraph_dead_code_elimination},
     {"constant_fold_propagate", lqueso_quesoGraph_constant_fold_propagate},
     {"replace_operand",         lqueso_quesoGraph_replace_operand},
+    {"shadowGraph",             lqueso_quesoGraph_shadowGraph},
     {NULL, NULL}
 };
 
@@ -985,6 +986,15 @@ int lqueso_quesoGraph_replace_operand (lua_State * L) {
     lua_pop(L, 3);
 
     return 0;
+}
+
+
+int lqueso_quesoGraph_shadowGraph (lua_State * L) {
+    QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, 1);
+
+    lqueso_quesoGraph_absorb(L, SpicyQueso::shadowGraph(quesoGraph));
+
+    return 1;
 }
 
 

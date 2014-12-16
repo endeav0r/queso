@@ -70,11 +70,11 @@ class Variable : public Operand {
         OperandType g_type () const { return VARIABLE; }
 
         const std::string & g_name () const { return name; }
-        Variable * copy () const;
+        virtual Variable * copy () const;
 
-        std::string smtlib2 () const;
+        virtual std::string smtlib2 () const;
         std::string smtlib2_declaration () const;
-        std::string queso () const;
+        virtual std::string queso () const;
         json_t *    json  () const;
 };
 

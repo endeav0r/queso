@@ -87,6 +87,7 @@ int lqueso_quesoGraph_json                    (lua_State * L);
 int lqueso_quesoGraph_dead_code_elimination   (lua_State * L);
 int lqueso_quesoGraph_constant_fold_propagate (lua_State * L);
 int lqueso_quesoGraph_replace_operand         (lua_State * L);
+int lqueso_quesoGraph_shadowGraph             (lua_State * L);
 
 MemoryModel * lqueso_memoryModel_check (lua_State * L, int position);
 int lqueso_memoryModel_push   (lua_State * L, MemoryModel * memoryModel);
