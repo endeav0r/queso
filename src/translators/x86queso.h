@@ -98,8 +98,10 @@ class QuesoX86 : public Translator {
             return jcc(&condition);
         }
 
+        bool adc ();
         bool add ();
         bool And ();
+        bool bsf ();
         bool call ();
         bool cmova ();
         bool cmovb ();
@@ -130,6 +132,7 @@ class QuesoX86 : public Translator {
         bool movd ();
         bool movsd ();
         bool movzx ();
+        bool mul ();
         bool nop ();
         bool Not ();
         bool Or ();

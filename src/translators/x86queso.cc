@@ -40,8 +40,10 @@ InstructionX86 * QuesoX86 :: translate (const uint8_t * data,
                                  Constant(32, ud_insn_len(&ud_obj))));
 
     switch (ud_obj.mnemonic) {
+    case UD_Iadc    : adc(); break;
     case UD_Iadd    : add(); break;
     case UD_Iand    : And(); break;
+    case UD_Ibsf    : bsf(); break;
     case UD_Icall   : call(); break;
     case UD_Icmova  : cmova(); break;
     case UD_Icmovb  : cmovb(); break;
@@ -71,6 +73,7 @@ InstructionX86 * QuesoX86 :: translate (const uint8_t * data,
     case UD_Imovd   : movd(); break;
     case UD_Imovsd  : movsd(); break;
     case UD_Imovzx  : movzx(); break;
+    case UD_Imul    : mul(); break;
     case UD_Inop    : nop(); break;
     case UD_Inot    : Not(); break;
     case UD_Ior     : Or(); break;
@@ -402,6 +405,40 @@ bool QuesoX86 :: add () {
 }
 
 
+bool QuesoX86 :: adc () {
+    Operand * lhs = operandGet(0);
+    Operand * rhs = operandGet(1);
+    Variable tmp(lhs->g_bits(), "tmp");
+
+    Variable OFTmp   (1, "OFTmp");
+    Variable OF      (1, "OF");
+    Variable CF      (1, "CF");
+    Variable ZF      (1, "ZF");
+    Variable SF      (1, "SF");
+    Constant zero    (lhs->g_bits(), 0);
+
+    ix86->pdi(new InstructionAssign(&tmp, &CF));
+    ix86->pdi(new InstructionAdd(&tmp, &tmp, lhs));
+    ix86->pdi(new InstructionAdd(&tmp, &tmp, rhs));
+
+    ix86->pdi(new InstructionCmpLtu(&CF, &tmp, lhs));
+    ix86->pdi(new InstructionCmpEq(&ZF, &tmp, &zero));
+    ix86->pdi(new InstructionCmpLts(&SF, &tmp, &zero));
+    // stolen directly from rnp_see, stolen directly from RREIL paper
+    // http://www2.in.tum.de/bib/files/sepp11precise.pdf
+    Variable SFxorOF(1, "SFxorOF");
+    ix86->pdi(new InstructionCmpLts(&SFxorOF, lhs, rhs));
+    ix86->pdi(new InstructionXor(&OF, &SFxorOF, &SF));
+
+    operandSet(0, &tmp);
+
+    delete lhs;
+    delete rhs;
+
+    return true;
+}
+
+
     
 bool QuesoX86 :: And () {
     Operand * lhs = operandGet(0);
@@ -434,6 +471,46 @@ bool QuesoX86 :: And () {
 
     delete lhs;
     delete rhs;
+
+    return true;
+}
+
+
+// looks like, according to intel docs, dst/src have to be same bit-width,
+// which we assume here to make our lives a little bit easier.
+bool QuesoX86 :: bsf () {
+    Operand * dst = operandGet(0);
+    Operand * src = operandGet(1);
+
+    Variable ZF(1, "ZF");
+    Constant zero(src->g_bits(), 0);
+    Constant one(src->g_bits(), 1);
+
+    ix86->pdi(new InstructionCmpEq(&ZF, src, &zero));
+
+    Variable tmp(src->g_bits(), "tmp");
+    Variable tmp2(src->g_bits(), "tmp2");
+    Variable result(dst->g_bits(), "result");
+    ix86->pdi(new InstructionAssign(&tmp, src));
+    ix86->pdi(new InstructionAssign(result, zero));
+
+    Constant ffPower(src->g_bits(), (int64_t) -1);
+    ix86->pdi(new InstructionXor(tmp, tmp, ffPower));
+
+    Variable adderPower(src->g_bits(), "tmp3");
+    ix86->pdi(new InstructionAssign(adderPower, one));
+
+    for (size_t i = 0; i < src->g_bits(); i++) {
+        ix86->pdi(new InstructionAnd(tmp2, tmp, one));
+        ix86->pdi(new InstructionAnd(adderPower, adderPower, tmp2));
+        ix86->pdi(new InstructionAdd(result, result, adderPower));
+        ix86->pdi(new InstructionShr(tmp, tmp, one));
+    }
+
+    operandSet(0, &result);
+
+    delete dst;
+    delete src;
 
     return true;
 }
@@ -802,6 +879,44 @@ bool QuesoX86 :: movzx () {
     delete src;
 
     return true;
+}
+
+
+bool QuesoX86 :: mul () {
+    Operand * rhs = operandGet(0);
+
+    if (rhs->g_bits() == 32) {
+        Variable eax(32, "eax");
+        Variable edx(32, "edx");
+        Variable lhs(64, "lhs");
+        Variable rrhs(64, "rhs");
+        Variable result(64, "result");
+
+        Constant thirtyTwo(64, 32);
+
+        ix86->pdi(new InstructionAssign(lhs, eax));
+        ix86->pdi(new InstructionAssign(&rrhs, rhs));
+        ix86->pdi(new InstructionMul(result, lhs, rrhs));
+
+        ix86->pdi(new InstructionAssign(eax, result));
+        ix86->pdi(new InstructionShr(result, result, thirtyTwo));
+        ix86->pdi(new InstructionAssign(edx, result));
+
+        Constant zero(32, 0);
+        Variable OF(1, "OF");
+        Variable CF(1, "CF");
+
+        ix86->pdi(new InstructionCmpEq(OF, edx, zero));
+        ix86->pdi(new InstructionCmpEq(CF, edx, zero));
+
+        delete rhs;
+
+        return true;
+    }
+
+    delete rhs;
+
+    return false;
 }
 
 
