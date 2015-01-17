@@ -88,6 +88,9 @@ class QuesoX86 : public Translator {
         Operand * operandGet   (unsigned int place);
         void      operandSet   (unsigned int place, Operand * value);
 
+        bool rep ();
+        bool repe ();
+
         bool cmovcc (const Operand * condition);
         bool cmovcc (const Operand & condition) {
             return cmovcc(&condition);
@@ -103,6 +106,7 @@ class QuesoX86 : public Translator {
         bool And ();
         bool bsf ();
         bool call ();
+        bool cld ();
         bool cmova ();
         bool cmovb ();
         bool cmovbe ();
@@ -110,9 +114,11 @@ class QuesoX86 : public Translator {
         bool cmovs ();
         bool cmovz ();
         bool cmp ();
+        bool cmpsb ();
         bool cwde ();
         bool dec ();
         bool inc ();
+        bool imul ();
         bool ja ();
         bool jae ();
         bool jb ();
@@ -130,15 +136,21 @@ class QuesoX86 : public Translator {
         bool leave ();
         bool mov ();
         bool movd ();
+        bool movsb ();
         bool movsd ();
         bool movzx ();
         bool mul ();
+        bool neg ();
         bool nop ();
         bool Not ();
         bool Or ();
         bool pop ();
         bool push ();
         bool ret ();
+        bool sar ();
+        bool sbb ();
+        bool setnz ();
+        bool shl ();
         bool shr ();
         bool sub ();
         bool test ();

@@ -1,0 +1,276 @@
+
+package bapTrace;
+
+message program {
+    repeated stmt elem = 1;
+}
+
+message stmt {
+    optional move move = 1;
+    optional jmp jmp = 2;
+    optional cjmp cjmp = 3;
+    optional label_stmt label_stmt = 4;
+    optional halt halt = 5;
+    optional assert_stmt assert_stmt = 6;
+    optional assume assume = 7;
+    optional comment comment = 8;
+    optional special special = 9;
+}
+
+message move {
+    required var var = 1;
+    required exp exp = 2;
+    required attributes attributes = 3;
+}
+
+message jmp {
+    required exp exp = 1;
+    required attributes attributes = 2;
+}
+
+message cjmp {
+    required exp cond = 1;
+    required exp iftrue = 2;
+    required exp iffalse = 3;
+    required attributes attributes = 4;
+}
+
+message label_stmt {
+    required label label = 1;
+    required attributes attributes = 2;
+}
+
+message halt {
+    required exp exp = 1;
+    required attributes attributes = 2;
+}
+
+message assert_stmt {
+    required exp exp = 1;
+    required attributes attributes = 2;
+}
+
+message assume {
+    required exp exp = 1;
+    required attributes attributes = 2;
+}
+
+message comment {
+    required string string = 1;
+    required attributes attributes = 2;
+}
+
+message special {
+    required string string = 1;
+    optional defuse defuse = 2;
+    required attributes attributes = 3;
+}
+
+message typ {
+    optional sint32 reg = 1;
+    optional tmem tmem = 2;
+    optional array array = 3;
+}
+
+message tmem {
+    required typ index_type = 1;
+    required typ element_type = 2;
+}
+
+message array {
+    required typ index_type = 1;
+    required typ element_type = 2;
+}
+
+message label {
+    optional string name = 1;
+    optional sint64 addr = 2;
+}
+
+enum cast_type {
+    cast_unsigned = 1;
+    cast_signed = 2;
+    cast_high = 3;
+    cast_low = 4;
+}
+
+enum binop_type {
+    plus = 1;
+    minus = 2;
+    times = 3;
+    divide = 4;
+    sdivide = 5;
+    modbop = 6;
+    smod = 7;
+    lshift = 8;
+    rshift = 9;
+    arshift = 10;
+    andbop = 11;
+    orbop = 12;
+    xor = 13;
+    eq = 14;
+    neq = 15;
+    lt = 16;
+    le = 17;
+    slt = 18;
+    sle = 19;
+}
+
+enum unop_type {
+    uneg = 1;
+    unot = 2;
+}
+
+message var {
+    required string name = 1;
+    required sint32 id = 2;
+    required typ typ = 3;
+}
+
+message vars {
+    repeated var elem = 1;
+}
+
+message defuse {
+    required vars defs = 1;
+    required vars uses = 2;
+}
+
+message attribute {
+    optional string asm = 1;
+    optional sint64 address = 2;
+    optional liveout liveout = 3;
+    optional string strattr = 4;
+    optional context context = 5;
+    optional uint64 thread_id = 6;
+    optional synthetic synthetic = 7;
+    optional string other = 8;
+}
+
+message attributes {
+    repeated attribute elem = 1;
+}
+
+message liveout {
+    
+}
+
+message synthetic {
+    
+}
+
+message operand_info_specific {
+    optional mem_operand mem_operand = 1;
+    optional reg_operand reg_operand = 2;
+}
+
+message reg_operand {
+    required string name = 1;
+}
+
+message operand_usage {
+    required bool read = 1;
+    required bool written = 2;
+    required bool index = 3;
+    required bool base = 4;
+}
+
+message mem_operand {
+    required sint64 address = 1;
+}
+
+message taint_info {
+    optional bool no_taint = 1;
+    optional uint64 taint_id = 2;
+    optional bool taint_multiple = 3;
+}
+
+message context {
+    required operand_info_specific operand_info_specific = 1;
+    required sint32 bit_length = 2;
+    required operand_usage operand_usage = 3;
+    required taint_info taint_info = 4;
+    required string value = 5;
+}
+
+message exp {
+    optional load load = 1;
+    optional store store = 2;
+    optional binop binop = 3;
+    optional unop unop = 4;
+    optional var var = 5;
+    optional string lab = 6;
+    optional inte inte = 7;
+    optional cast cast = 8;
+    optional let_exp let_exp = 9;
+    optional unknown unknown = 10;
+    optional ite ite = 11;
+    optional extract extract = 12;
+    optional concat concat = 13;
+}
+
+message load {
+    required exp memory = 1;
+    required exp address = 2;
+    required exp endian = 3;
+    required typ typ = 4;
+}
+
+message store {
+    required exp memory = 1;
+    required exp address = 2;
+    required exp value = 3;
+    required exp endian = 4;
+    required typ typ = 5;
+}
+
+message binop {
+    required binop_type binop_type = 1;
+    required exp lexp = 2;
+    required exp rexp = 3;
+}
+
+message unop {
+    required unop_type unop_type = 1;
+    required exp exp = 2;
+}
+
+message inte {
+    required string int = 1;
+    required typ typ = 2;
+}
+
+message cast {
+    required cast_type cast_type = 1;
+    required typ new_type = 2;
+    required exp exp = 3;
+}
+
+message let_exp {
+    required var var = 1;
+    required exp e1 = 2;
+    required exp e2 = 3;
+}
+
+message unknown {
+    required string string = 1;
+    required typ typ = 2;
+}
+
+message ite {
+    required exp condition = 1;
+    required exp iftrue = 2;
+    required exp iffalse = 3;
+}
+
+message extract {
+    required sint32 hbit = 1;
+    required sint32 lbit = 2;
+    required exp exp = 3;
+}
+
+message concat {
+    required exp le = 1;
+    required exp re = 2;
+}
+

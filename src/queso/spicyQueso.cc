@@ -704,65 +704,72 @@ void SpicyQueso :: blockize (QuesoGraph * quesoGraph) {
 void SpicyQueso :: dead_code_elimination (QuesoGraph * quesoGraph) {
     std::set <std::string> vars_read;
 
-    std::map <uint64_t, GraphVertex *> :: iterator it;
-    for (it = quesoGraph->g_vertices().begin();
-         it != quesoGraph->g_vertices().end();
-         it++) {
-        Instruction * instruction = (Instruction *) it->second;
+    // this is god awful, but it works
+    bool another_pass = true;
+    while (another_pass) {
+        another_pass = false;
 
-        bool noSuccessors = false;
-        if (instruction->g_successors().size() == 0)
-            noSuccessors = true;
+        vars_read.clear();
+        std::map <uint64_t, GraphVertex *> :: iterator it;
+        for (it = quesoGraph->g_vertices().begin();
+             it != quesoGraph->g_vertices().end();
+             it++) {
+            Instruction * instruction = (Instruction *) it->second;
 
-        std::list <Instruction *> flattened = instruction->flatten();
-        std::list <Instruction *> :: iterator iit;
-        for (iit = flattened.begin(); iit != flattened.end(); iit++) {
+            bool noSuccessors = false;
+            if (instruction->g_successors().size() == 0)
+                noSuccessors = true;
 
-            // terminating vertices retain all operands
-            std::list <Operand *> operands;
-            if (noSuccessors)
-                operands = (*iit)->operands();
-            else
-                operands = (*iit)->operands_read();
-            std::list <Operand *> :: iterator oit;
-            for (oit = operands.begin(); oit != operands.end(); oit++) {
-                Operand * operand = *oit;
-                if (operand->g_type() == CONSTANT)
+            std::list <Instruction *> flattened = instruction->flatten();
+            std::list <Instruction *> :: iterator iit;
+            for (iit = flattened.begin(); iit != flattened.end(); iit++) {
+
+                // terminating vertices retain all operands
+                std::list <Operand *> operands;
+                if (noSuccessors)
+                    operands = (*iit)->operands();
+                else
+                    operands = (*iit)->operands_read();
+                std::list <Operand *> :: iterator oit;
+                for (oit = operands.begin(); oit != operands.end(); oit++) {
+                    Operand * operand = *oit;
+                    if (operand->g_type() == CONSTANT)
+                        continue;
+                    vars_read.insert(operand->queso());
+                }
+            }
+        }
+
+        for (it = quesoGraph->g_vertices().begin();
+             it != quesoGraph->g_vertices().end();
+             it++) {
+            Instruction * instruction = (Instruction *) it->second;
+
+            std::queue <Instruction *> to_delete;
+
+            std::list <Instruction *> flattened = instruction->flatten();
+            std::list <Instruction *> :: iterator iit;
+            for (iit = flattened.begin(); iit != flattened.end(); iit++) {
+                Operand * operand_written = (*iit)->operand_written();
+                if (operand_written == NULL)
                     continue;
-                vars_read.insert(operand->queso());
+
+                if (vars_read.count(operand_written->queso()) == 0) {
+                    to_delete.push(*iit);
+                    another_pass = true;
+                }
             }
-        }
-    }
 
-
-    for (it = quesoGraph->g_vertices().begin();
-         it != quesoGraph->g_vertices().end();
-         it++) {
-        Instruction * instruction = (Instruction *) it->second;
-
-        std::queue <Instruction *> to_delete;
-
-        std::list <Instruction *> flattened = instruction->flatten();
-        std::list <Instruction *> :: iterator iit;
-        for (iit = flattened.begin(); iit != flattened.end(); iit++) {
-            Operand * operand_written = (*iit)->operand_written();
-            if (operand_written == NULL)
-                continue;
-
-            if (vars_read.count(operand_written->queso()) == 0) {
-                to_delete.push(*iit);
-            }
-        }
-
-        while (to_delete.size() > 0) {
-            // fix later, but will keep graph nodes from dying
-            if (instruction->flatten().size() == 1) {
+            while (to_delete.size() > 0) {
+                // fix later, but will keep graph nodes from dying
+                if (instruction->flatten().size() == 1) {
+                    to_delete.pop();
+                    continue;
+                }
+                instruction->remove_depth_instruction(to_delete.front());
+                delete to_delete.front();
                 to_delete.pop();
-                continue;
             }
-            instruction->remove_depth_instruction(to_delete.front());
-            delete to_delete.front();
-            to_delete.pop();
         }
     }
 }

@@ -30,6 +30,7 @@ static const struct luaL_Reg lqueso_lib_f [] = {
     {"elf32",           lqueso_elf32_new},
     {"variable",        lqueso_variable},
     {"constant",        lqueso_constant},
+    {"quesoGraph",      lqueso_quesoGraph},
     {NULL, NULL}
 };
 
@@ -92,6 +93,8 @@ static const struct luaL_Reg lqueso_quesoGraph_m [] = {
     {"constant_fold_propagate", lqueso_quesoGraph_constant_fold_propagate},
     {"replace_operand",         lqueso_quesoGraph_replace_operand},
     {"shadowGraph",             lqueso_quesoGraph_shadowGraph},
+    {"absorbInstruction",       lqueso_quesoGraph_absorbInstruction},
+    {"addEdge",                 lqueso_quesoGraph_addEdge},
     {NULL, NULL}
 };
 
@@ -165,14 +168,19 @@ LUALIB_API int luaopen_lqueso (lua_State * L) {
 
 int lqueso_x86translate (lua_State * L) {
     size_t size;
-    const char * bytes = luaL_checklstring(L, -1, &size);
+    const char * bytes = luaL_checklstring(L, 1, &size);
 
     if (bytes == NULL)
         return 0;
 
     QuesoX86 quesoX86;
-    Instruction * instruction = quesoX86.translate((const uint8_t *) bytes, size);
-    lua_pop(L, 1);
+    Instruction * instruction = NULL;
+    if (lua_isuserdata(L, 2)) {
+        uint64_t pc = luint64_check(L, 2);
+        instruction = quesoX86.translate((const uint8_t *) bytes, size, pc);
+    }
+    else
+        instruction = quesoX86.translate((const uint8_t *) bytes, size);
 
     if (instruction == NULL)
         return 0;
@@ -253,6 +261,15 @@ int lqueso_constant (lua_State * L) {
     Constant constant(bits, value);
 
     lqueso_operand_push(L, &constant);
+
+    return 1;
+}
+
+
+int lqueso_quesoGraph (lua_State * L) {
+    QuesoGraph * quesoGraph = new QuesoGraph;
+
+    lqueso_quesoGraph_absorb(L, quesoGraph);
 
     return 1;
 }
@@ -995,6 +1012,38 @@ int lqueso_quesoGraph_shadowGraph (lua_State * L) {
     lqueso_quesoGraph_absorb(L, SpicyQueso::shadowGraph(quesoGraph));
 
     return 1;
+}
+
+
+int lqueso_quesoGraph_absorbInstruction (lua_State * L) {
+    QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, 1);
+    Instruction * instruction = lqueso_instruction_check(L, 2);
+
+    if (lua_isnumber(L, 3)) {
+        uint64_t vIndex = (uint64_t) luaL_checkinteger(L, 3);
+        quesoGraph->absorbInstruction(instruction, vIndex);
+    }
+    else
+        quesoGraph->absorbInstruction(instruction);
+
+    lua_newtable(L);
+    lua_pushstring(L, "quesoGraph");
+    lua_pushvalue(L, 1);
+    lua_settable(L, -3);
+    lua_setuservalue(L, 2);
+
+    return 0;
+}
+
+
+int lqueso_quesoGraph_addEdge (lua_State * L) {
+    QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, 1);
+    uint64_t head = luint64_check(L, 2);
+    uint64_t tail = luint64_check(L, 3);
+
+    quesoGraph->absorbEdge(new QuesoEdge(quesoGraph, head, tail, CFT_NORMAL));
+
+    return 0;
 }
 
 

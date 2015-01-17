@@ -30,6 +30,7 @@ int lqueso_x86acyclicDepth (lua_State * L);
 int lqueso_x86treeDepth    (lua_State * L);
 int lqueso_variable        (lua_State * L);
 int lqueso_constant        (lua_State * L);
+int lqueso_quesoGraph      (lua_State * L);
 
 Instruction * lqueso_instruction_check (lua_State * L, int position);
 int lqueso_instruction_push               (lua_State * L, Instruction * instruction);
@@ -88,6 +89,8 @@ int lqueso_quesoGraph_dead_code_elimination   (lua_State * L);
 int lqueso_quesoGraph_constant_fold_propagate (lua_State * L);
 int lqueso_quesoGraph_replace_operand         (lua_State * L);
 int lqueso_quesoGraph_shadowGraph             (lua_State * L);
+int lqueso_quesoGraph_absorbInstruction       (lua_State * L);
+int lqueso_quesoGraph_addEdge                 (lua_State * L);
 
 MemoryModel * lqueso_memoryModel_check (lua_State * L, int position);
 int lqueso_memoryModel_push   (lua_State * L, MemoryModel * memoryModel);
