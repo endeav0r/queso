@@ -85,8 +85,6 @@ def clean () :
         except :
             pass
     
-executeCommand('protoc --cpp_out baptrace/ baptrace/bapTrace.proto')
-
 addSourceFile('containers/memoryModel')
 addSourceFile('disassembler/x86Disassembler')
 addSourceFile('graph/graph')
