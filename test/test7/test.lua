@@ -5,9 +5,9 @@ local crash_0 = lbaptrace.open('crash_0.bpt')
 
 local quesoGraph = lqueso.quesoGraph()
 
-print('-------------------------------')
-print('- some bap trace instructions -')
-print('-------------------------------')
+--print('-------------------------------')
+--print('- some bap trace instructions -')
+--print('-------------------------------')
 
 local i = 1
 while crash_0:end_of_trace() == false do
@@ -16,7 +16,7 @@ while crash_0:end_of_trace() == false do
     if frame.type == 'std_frame' then
         local instruction = lqueso.x86translate(frame.rawbytes, luint64.luint64(frame.address))
 
-        print(i, instruction:queso())
+--        print(i, instruction:queso())
 
         quesoGraph:absorbInstruction(instruction, i)
         if i ~= 1 then
@@ -38,10 +38,10 @@ function printQueso (instruction, depth)
     end
 end
 
-quesoGraph:ssa()
-quesoGraph:constant_fold_propagate()
-quesoGraph:dead_code_elimination()
 quesoGraph:blockize()
+quesoGraph:ssa()
+--quesoGraph:constant_fold_propagate()
+--quesoGraph:dead_code_elimination()
 
 print()
 print('---------------------------------')
