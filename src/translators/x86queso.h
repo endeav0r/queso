@@ -90,6 +90,7 @@ class QuesoX86 : public Translator {
 
         bool rep ();
         bool repe ();
+        bool repne ();
 
         bool cmovcc (const Operand * condition);
         bool cmovcc (const Operand & condition) {
@@ -117,6 +118,7 @@ class QuesoX86 : public Translator {
         bool cmpsb ();
         bool cwde ();
         bool dec ();
+        bool div ();
         bool inc ();
         bool imul ();
         bool ja ();
@@ -138,6 +140,7 @@ class QuesoX86 : public Translator {
         bool movd ();
         bool movsb ();
         bool movsd ();
+        bool movsx ();
         bool movzx ();
         bool mul ();
         bool neg ();
@@ -149,9 +152,13 @@ class QuesoX86 : public Translator {
         bool ret ();
         bool sar ();
         bool sbb ();
+        bool scasb ();
         bool setnz ();
+        bool setz ();
         bool shl ();
         bool shr ();
+        bool stosb ();
+        bool stosd ();
         bool sub ();
         bool test ();
         bool Xor ();

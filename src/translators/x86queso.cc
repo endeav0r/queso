@@ -27,7 +27,7 @@ InstructionX86 * QuesoX86 :: translate (const uint8_t * data,
         return NULL;
 
     #ifdef DEBUG_x86TRANSLATE
-    printf("DEBUG_X86TRANSLATE %s\n", ud_insn_asm(&ud_obj));fflush(stdout);
+    printf("DEBUG_X86TRANSLATE %02x %02x %s\n", data[0], data[1], ud_insn_asm(&ud_obj));fflush(stdout);
     #endif
 
     if (setpc)
@@ -56,6 +56,7 @@ InstructionX86 * QuesoX86 :: translate (const uint8_t * data,
     case UD_Icmpsb  : cmpsb(); break;
     case UD_Icwde   : cwde(); break;
     case UD_Idec    : dec(); break;
+    case UD_Idiv    : div(); break;
     case UD_Iinc    : inc(); break;
     case UD_Imul    : imul(); break;
     case UD_Ija     : ja(); break;
@@ -63,6 +64,7 @@ InstructionX86 * QuesoX86 :: translate (const uint8_t * data,
     case UD_Ijb     : jb(); break;
     case UD_Ijbe    : jbe(); break;
     case UD_Ijg     : jg(); break;
+    case UD_Ijge    : jge(); break;
     case UD_Ijl     : jl(); break;
     case UD_Ijle    : jle(); break;
     case UD_Ijmp    : jmp(); break;
@@ -76,6 +78,7 @@ InstructionX86 * QuesoX86 :: translate (const uint8_t * data,
     case UD_Imovd   : movd(); break;
     case UD_Imovsb  : movsb(); break;
     case UD_Imovsd  : movsd(); break;
+    case UD_Imovsx  : movsd(); break;
     case UD_Imovzx  : movzx(); break;
     case UD_Iimul   : imul(); break;
     case UD_Ineg    : neg(); break;
@@ -87,9 +90,13 @@ InstructionX86 * QuesoX86 :: translate (const uint8_t * data,
     case UD_Iret    : ret(); break;
     case UD_Isbb    : sbb(); break;
     case UD_Isar    : sar(); break;
+    case UD_Iscasb  : scasb(); break;
     case UD_Isetnz  : setnz(); break;
+    case UD_Isetz   : setz(); break;
     case UD_Ishl    : shl(); break;
     case UD_Ishr    : shr(); break;
+    case UD_Istosb  : stosb(); break;
+    case UD_Istosd  : stosd(); break;
     case UD_Isub    : sub(); break;
     case UD_Itest   : test(); break;
     case UD_Ixor    : Xor(); break;
@@ -105,10 +112,17 @@ InstructionX86 * QuesoX86 :: translate (const uint8_t * data,
                 // udis86 being difficult. this is rep movsb
              || ((data[0] == 0xf3) && (data[1] == 0xa4))
                 // this is rep movsd
-             || ((data[0] == 0xf3) && (data[1] == 0xa5))) {
+             || ((data[0] == 0xf3) && (data[1] == 0xa5))
+                // rep stosd
+             || ((data[0] == 0xf3) && (data[1] == 0xab))
+                // rep stosb
+             || ((data[0] == 0xf3) && (data[1] == 0xaa))) {
             switch (ud_obj.mnemonic) {
             case UD_Imovsb :
             case UD_Imovsd :
+            case UD_Istosb :
+            case UD_Istosd :
+                //printf("rep\n");
                 rep ();
                 break;
             default :
@@ -116,12 +130,19 @@ InstructionX86 * QuesoX86 :: translate (const uint8_t * data,
             }
         }
         // repe cmpsb
-        else if ((data[0] == 0xf3) && (data[1] == 0xa6))
+        else if ((data[0] == 0xf3) && (data[1] == 0xa6)) {
+            //printf("repe\n");
             repe();
+        }
         else if (ud_obj.pfx_rep == UD_Irepne)
             throw std::runtime_error(std::string("QuesoX86::translate unsupported rep4: ") + ud_insn_asm(&ud_obj));
         else
             throw std::runtime_error(std::string("QuesoX86::translate unsupported rep2: ") + ud_insn_asm(&ud_obj));
+    }
+    // repne scasb
+    else if ((data[0] == 0xf2) && (data[1] == 0xae)) {
+        //printf("repne\n");
+        repne();
     }
 
     return ix86;
@@ -168,6 +189,26 @@ bool QuesoX86 :: repe () {
 }
 
 
+bool QuesoX86 :: repne () {
+    Variable ecx(32, "ecx");
+    Constant one(32, 1);
+    Constant zero(32, 0);
+    Constant ins_size(32, ud_insn_len(&ud_obj));
+    Variable rep_eip(32, "rep_eip");
+    Variable eip(32, "eip");
+    Variable tmp(1, "tmp");
+    Variable ZF(1, "ZF");
+
+    ix86->pdi(new InstructionSub(ecx, ecx, one));
+    ix86->pdi(new InstructionCmpEq(tmp, ecx, zero));
+    ix86->pdi(new InstructionSub(rep_eip, eip, ins_size));
+    ix86->pdi(new InstructionIte(&rep_eip, &ZF, &eip, &rep_eip));
+    ix86->pdi(new InstructionIte(&eip, &tmp, &eip, &rep_eip));
+
+    return true;
+}
+
+
 InstructionX86 * QuesoX86 :: translate (const uint8_t * data, size_t size) {
     return translate(data, size, 0, false);
 }
@@ -201,13 +242,16 @@ Variable fullReg (unsigned int reg) {
     case UD_R_EDX :
         return Variable(32, "edx");
     case UD_R_ESP :
+    case UD_R_SP  :
         return Variable(32, "esp");
-    case UD_R_BP :
+    case UD_R_BP  :
     case UD_R_EBP :
         return Variable(32, "ebp");
     case UD_R_ESI :
+    case UD_R_SI  :
         return Variable(32, "esi");
     case UD_R_EDI :
+    case UD_R_DI  :
         return Variable(32, "edi");
     }
     throw std::runtime_error("invalid register");
@@ -250,6 +294,7 @@ Variable QuesoX86 :: getRegister (unsigned int reg) {
     case UD_R_BX :
     case UD_R_CX :
     case UD_R_DX :
+    case UD_R_SI :
     case UD_R_BP : {
         Variable rx = 
             (reg == UD_R_AX ? Variable(16, "ax") :
@@ -257,7 +302,8 @@ Variable QuesoX86 :: getRegister (unsigned int reg) {
               (reg == UD_R_CX ? Variable(16, "cx") :
                (reg == UD_R_DX ? Variable(16, "dx") :
                 (reg == UD_R_BP ? Variable(16, "bp") :
-                Variable(0, "error"))))));
+                 (reg == UD_R_SI ? Variable(16, "si") :
+                Variable(0, "error")))))));
         ix86->pdi(new InstructionAssign(rx, fullReg(reg)));
         return rx;
     }
@@ -766,6 +812,40 @@ bool QuesoX86 :: cwde () {
 }
 
 
+bool QuesoX86 :: div () {
+    Operand * divisor = operandGet(0);
+
+    if (divisor->g_bits() == 32) {
+        Variable eax(32, "eax");
+        Variable edx(32, "edx");
+        Variable dividend(64, "dividend");
+        Variable tmp64(64, "tmp64");
+        Constant thirtyTwo64(64, 32);
+
+        ix86->pdi(new InstructionAssign(dividend, edx));
+        ix86->pdi(new InstructionAssign(tmp64, eax));
+        ix86->pdi(new InstructionShl(dividend, dividend, thirtyTwo64));
+        ix86->pdi(new InstructionOr(dividend, dividend, tmp64));
+
+        Variable divisor64(64, "divisor64");
+        ix86->pdi(new InstructionAssign(&divisor64, divisor));
+
+        ix86->pdi(new InstructionUdiv(tmp64, dividend, divisor64));
+        ix86->pdi(new InstructionAssign(eax, tmp64));
+        ix86->pdi(new InstructionUmod(tmp64, dividend, divisor64));
+        ix86->pdi(new InstructionAssign(edx, tmp64));
+    }
+    else {
+        delete divisor;
+        throw std::runtime_error("div called on non 32-bit operand");
+    }
+    
+    delete divisor;
+
+    return true;
+}
+
+
 bool QuesoX86 :: dec () {
     Operand * lhs = operandGet(0);
 
@@ -1114,6 +1194,17 @@ bool QuesoX86 :: movsd () {
 }
 
 
+bool QuesoX86 :: movsx () {
+    Operand * dst = operandGet(0);
+    Operand * src = operandGet(1);
+
+    Variable tmp(dst->g_bits(), "tmp");
+    ix86->pdi(new InstructionSignExtend(&tmp, src));
+
+    operandSet(0, &tmp);
+}
+
+
 bool QuesoX86 :: movzx () {
     Operand * src = operandGet(1);
     operandSet(0, src);
@@ -1351,6 +1442,44 @@ bool QuesoX86 :: sbb () {
 }
 
 
+bool QuesoX86 :: scasb () {
+    Variable al = getRegister(UD_R_AL);
+    Variable edi(32, "edi");
+
+    Array memory(8, "memory", 32);
+    Variable tmp(8, "tmp");
+
+    ix86->pdi(new InstructionLoad(&tmp, &memory, &edi));
+
+    Variable CF(1, "CF");
+    Variable ZF(1, "ZF");
+    Variable SF(1, "SF");
+    Variable OF(1, "OF");
+    Variable SFxorOF(1, "SFxorOF");
+    Variable tmp3(8, "tmp3");
+    Constant zero(8, 0);
+
+    ix86->pdi(new InstructionCmpLtu(CF,      al, tmp));
+    ix86->pdi(new InstructionCmpLts(SFxorOF, al, tmp));
+    ix86->pdi(new InstructionCmpEq (ZF,      al, tmp));
+    ix86->pdi(new InstructionSub   (tmp3,    al, tmp));
+    ix86->pdi(new InstructionCmpLts(SF,      tmp3, zero));
+    ix86->pdi(new InstructionXor   (OF,      SFxorOF, SF));
+
+    Variable edi_add_one(32, "edi_add_one");
+    Variable edi_sub_one(32, "edi_sub_one");
+    Constant one(32, 1);
+
+    ix86->pdi(new InstructionAdd(edi_add_one, edi, one));
+    ix86->pdi(new InstructionSub(edi_sub_one, edi, one));
+
+    Variable DF(1, "DF");
+    ix86->pdi(new InstructionIte(&edi, &DF, &edi_sub_one, &edi_add_one));
+
+    return true;
+}
+
+
 bool QuesoX86 :: setnz () {
     Operand * dst = operandGet(0);
 
@@ -1361,6 +1490,25 @@ bool QuesoX86 :: setnz () {
     Constant zero(dst->g_bits(), 0);
 
     ix86->pdi(new InstructionIte(&tmp, &ZF, &zero, &one));
+
+    operandSet(0, &tmp);
+
+    delete dst;
+
+    return true;
+}
+
+
+bool QuesoX86 :: setz () {
+    Operand * dst = operandGet(0);
+
+    Variable ZF(1, "ZF");
+
+    Constant one(dst->g_bits(), 1);
+    Constant zero(dst->g_bits(), 0);
+    Variable tmp(dst->g_bits(), "tmp");
+
+    ix86->pdi(new InstructionIte(&tmp, &ZF, &one, &zero));
 
     operandSet(0, &tmp);
 
@@ -1442,6 +1590,44 @@ bool QuesoX86 :: shr () {
     operandSet(0, &tmp);
 
     return true;
+}
+
+
+bool QuesoX86 :: stosb () {
+    Variable al = getRegister(UD_R_AL);
+    Variable edi(32, "edi");
+    Array memory(8, "memory", 32);
+
+    ix86->pdi(new InstructionStore(&memory, &edi, &al));
+
+    Variable edi_add_one(32, "edi_add_one");
+    Variable edi_sub_one(32, "edi_sub_one");
+    Constant one(32, 1);
+
+    ix86->pdi(new InstructionAdd(edi_add_one, edi, one));
+    ix86->pdi(new InstructionSub(edi_sub_one, edi, one));
+
+    Variable DF(1, "DF");
+    ix86->pdi(new InstructionIte(&edi, &DF, &edi_sub_one, &edi_add_one));
+}
+
+
+bool QuesoX86 :: stosd () {
+    Variable eax(32, "eax");
+    Variable edi(32, "edi");
+    Array memory(8, "memory", 32);
+
+    ix86->pdi(new InstructionStoreLE32(&memory, &edi, &eax));
+
+    Variable edi_add_four(32, "edi_add_four");
+    Variable edi_sub_four(32, "edi_sub_four");
+    Constant four(32, 4);
+
+    ix86->pdi(new InstructionAdd(edi_add_four, edi, four));
+    ix86->pdi(new InstructionSub(edi_sub_four, edi, four));
+
+    Variable DF(1, "DF");
+    ix86->pdi(new InstructionIte(&edi, &DF, &edi_sub_four, &edi_add_four));
 }
 
 
