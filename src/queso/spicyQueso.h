@@ -189,15 +189,51 @@ class InstructionShadow : public Instruction {
 };
 
 
+class LiveVertex : public GraphVertex {
+    private :
+        std::list <Operand *> variables_in;
+        std::list <Operand *> variables_out;
+    public :
+        void variable_in (Operand * operand);
+        void variable_out (Operand * operand);
+};
+
+
 class SpicyQueso {
     public :
         static void ssa (std::list <Instruction *> & instructions);
         static void ssa (QuesoGraph * quesoGraph);
 
+        // apply ssa over a single instruction
+        static void ssa_instruction (Instruction * instruction);
+
+        /* Looks for instructions that assign to needle. Replaces
+         * that instruction with an assignment of value to needle.
+         */
+        static bool replace_with_assign (Instruction * instruction,
+                                         const Variable * needle,
+                                         const Operand * value);
+
+        /* Replace operand in a single instruction.
+         * Returns false if operand replaced, false otherwise.
+         * If true, newOperand is copied.
+         */
+        static bool replace_operand_instruction (Instruction * instruction,
+                                                 const std::string & needle,
+                                                 const Operand * newOperand);
+
         static void ssa2 (QuesoGraph * quesoGraph);
 
         static void blockize   (QuesoGraph * quesoGraph);
-        static void unblockize (QuesoGraph * quesoGraph);
+
+        /* REQUIRES ACYCLIC GRAPH
+         * finds all variables (Variable and Array) that are live at the point
+         * of all exit vertices in the graph, where exit vertices are vertices
+         * with no successors
+         * the result is a string of operand->queso() that can be used to
+         * quickly check if a given variable is live
+         */
+        static std::set <std::string> find_live_variables (QuesoGraph * quesoGraph);
 
         static void dead_code_elimination (QuesoGraph * quesoGraph);
         static void constant_fold_propagate (QuesoGraph * quesoGraph);

@@ -1,8 +1,10 @@
 #ifndef instruction_HEADER
 #define instruction_HEADER
 
+#include <stdexcept>
 #include <inttypes.h>
 #include <list>
+#include <set>
 #include <string>
 #include <jansson.h>
 #include "graph/graph.h"
@@ -19,7 +21,7 @@ enum QuesoOpcode {
     SUB,
     MUL,
     UDIV,
-    UMOD,
+    UREM,
     AND,
     OR,
     XOR,
@@ -108,7 +110,18 @@ class Constant : public Operand {
             : Operand (0), value (0) {}
 
         OperandType g_type  () const { return CONSTANT; }
-        uint64_t    g_value () const { return value; }
+        uint64_t    g_value () const { 
+            switch (g_bits()) {
+                case 1  : return value & 1;
+                case 8  : return (uint8_t)  value;
+                case 16 : return (uint16_t) value;
+                case 32 : return (uint32_t) value;
+                case 64 : return (uint64_t) value;
+                default :
+                    throw std::runtime_error("invalid Constant width");
+                    return 0;
+            }
+        }
 
         Constant * copy () const;
 
@@ -157,8 +170,12 @@ class Instruction : public GraphVertex {
         QuesoOpcode g_opcode () const { return opcode; }
 
         std::list <Instruction *> & g_depth_instructions ();
-        void push_depth_instruction   (Instruction * instruction);
-        bool remove_depth_instruction (Instruction * instruction);
+        void push_depth_instruction    (Instruction * instruction);
+        bool remove_depth_instruction  (Instruction * instruction);
+        bool replace_depth_instruction (Instruction * oldInstruction,
+                                        Instruction * newInstruction);
+        void remove_depth_instructions  (std::set <Instruction *> instructions);
+        bool remove_depth_instructions_ (std::set <Instruction *> & instructions);
         
         virtual Operand * operand_written () { return NULL; }
         virtual std::list <Operand *> operands_read () { return std::list <Operand *>(); }
@@ -506,14 +523,14 @@ class InstructionUdiv : public InstructionArithmetic {
         InstructionUdiv * copy () const { return new InstructionUdiv(dst, lhs, rhs); }
 };
 
-class InstructionUmod : public InstructionArithmetic {
+class InstructionUrem : public InstructionArithmetic {
     public :
-        InstructionUmod (const Variable & dst, const Operand & lhs, const Operand & rhs)
-            : InstructionArithmetic (UMOD, "bvumod", dst, lhs, rhs) {}
-        InstructionUmod (const Variable * dst, const Operand * lhs, const Operand * rhs)
-            : InstructionArithmetic (UMOD, "bvumod", dst, lhs, rhs) {}
+        InstructionUrem (const Variable & dst, const Operand & lhs, const Operand & rhs)
+            : InstructionArithmetic (UREM, "bvurem", dst, lhs, rhs) {}
+        InstructionUrem (const Variable * dst, const Operand * lhs, const Operand * rhs)
+            : InstructionArithmetic (UREM, "bvurem", dst, lhs, rhs) {}
 
-        InstructionUmod * copy () const { return new InstructionUmod(dst, lhs, rhs); }
+        InstructionUrem * copy () const { return new InstructionUrem(dst, lhs, rhs); }
 };
 
 class InstructionAnd : public InstructionArithmetic {

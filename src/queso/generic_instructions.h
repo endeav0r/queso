@@ -99,6 +99,7 @@ class InstructionLoadLE32 : public Instruction {
                              const Array * memory,
                              const Operand * address);
 
+        /*
         const Variable * g_dst     () { return dst; }
         const Array *    g_memory  () { return memory; }
         const Operand *  g_address () { return address; }
@@ -121,18 +122,21 @@ class InstructionLoadLE32 : public Instruction {
         void s_dst     (const Variable & dst)    { s_dst(&dst); }
         void s_memory  (const Array & memory)    { s_memory(&memory); }
         void s_address (const Operand & address) { s_address(&address); }
+        */
 
         virtual ~InstructionLoadLE32 ();
 
+        /*
         Operand * operand_written () { return dst; }
         std::list <Operand *> operands_read ();
         std::list <Operand *> operands ();
+        */
 
         const std::string queso () const;
 
         InstructionLoadLE32 * copy () const;
 
-        const std::string smtlib2 () const;
+        //const std::string smtlib2 () const;
 
         json_t * json () const;
 };
@@ -178,6 +182,7 @@ class InstructionStoreLE32 : public Instruction {
                               const Operand * address,
                               const Operand * value);
         virtual ~InstructionStoreLE32 ();
+        /*
 
         const Array *   g_mem_dst () { return mem_dst; }
         const Array *   g_memory  () { return memory; }
@@ -212,12 +217,13 @@ class InstructionStoreLE32 : public Instruction {
         Operand * operand_written () { return mem_dst; }
         std::list <Operand *> operands_read ();
         std::list <Operand *> operands ();
+        */
 
         const std::string queso () const;
 
         InstructionStoreLE32 * copy () const;
 
-        const std::string smtlib2 () const;
+        //const std::string smtlib2 () const;
 
         json_t * json () const;
 };

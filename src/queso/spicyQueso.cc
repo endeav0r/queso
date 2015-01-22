@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 
+#define DEAD_CODE_ELIMINATION_BAIL 0x100
+
 
 void SpicyQueso_ssa_assign_read (std::map <std::string, uint64_t> & variableCounts,
                                  Instruction * instruction) {
@@ -387,6 +389,46 @@ void SpicyQueso :: ssa (QuesoGraph * quesoGraph) {
 }
 
 
+void SpicyQueso :: ssa_instruction (Instruction * instruction) {
+    // ssa for this individual block
+    std::map <std::string, uint64_t> ssa;
+
+    std::list <Instruction *> flattened = instruction->flatten();
+    std::list <Instruction *> :: iterator iit;
+    // for every instruction in this block
+    for (iit = flattened.begin(); iit != flattened.end(); iit++) {
+        Instruction * instruction = (Instruction *) (*iit);
+
+        // set read operands
+        std::list <Operand *> operands_read = instruction->operands_read();
+        std::list <Operand *> :: iterator oit;
+        for (oit = operands_read.begin(); oit != operands_read.end(); oit++) {
+            Operand * operand = (Operand *) (*oit);
+
+            if (operand->g_type() == CONSTANT)
+                continue;
+
+            if (ssa.count(operand->g_name()) > 0)
+                operand->s_ssa(ssa[operand->g_name()]);
+            else
+                operand->s_ssa(0);
+        }
+
+        // set the write operand to a new ssa value
+        Operand * operand = instruction->operand_written();
+        if (operand == NULL)
+            continue;
+
+        if (ssa.count(operand->g_name()) == 0)
+            ssa[operand->g_name()] = 1;
+        else
+            ssa[operand->g_name()] += 1;
+
+        operand->s_ssa(ssa[operand->g_name()]);
+    }
+}
+
+
 void ssa2_blocks (QuesoGraph * quesoGraph,
                   std::map <std::string, uint64_t> & ssa) {
 
@@ -702,34 +744,41 @@ void SpicyQueso :: blockize (QuesoGraph * quesoGraph) {
 
 // eliminates across blocks, except blocks with no successors
 void SpicyQueso :: dead_code_elimination (QuesoGraph * quesoGraph) {
-    std::set <std::string> vars_read;
 
-    // this is god awful, but it works
-    bool another_pass = true;
-    while (another_pass) {
-        another_pass = false;
+    // liveVariables are variable we want to keep live, even if they are never
+    // read, as they exit the graph
+    std::set <std::string> liveVariables = SpicyQueso::find_live_variables(quesoGraph);
 
+    /*
+    std::set <std::string> :: iterator it;
+    for (it = liveVariables.begin(); it != liveVariables.end(); it++) {
+        std::cout << "liveVariable " << *it << std::endl;
+    }
+    */
+
+    // this is a god awful loop, but it works
+    uint64_t pass_deleted = DEAD_CODE_ELIMINATION_BAIL + 1;
+    // this is a cheap shortcut to bail when gains are no longer too awesome
+    // but this whole function can be reworked to be more better
+    while (pass_deleted > DEAD_CODE_ELIMINATION_BAIL) {
+        pass_deleted = 0;
+
+        // variables that are read at some point in the program
+        std::set <std::string> vars_read;
         vars_read.clear();
+
         std::map <uint64_t, GraphVertex *> :: iterator it;
         for (it = quesoGraph->g_vertices().begin();
              it != quesoGraph->g_vertices().end();
              it++) {
             Instruction * instruction = (Instruction *) it->second;
 
-            bool noSuccessors = false;
-            if (instruction->g_successors().size() == 0)
-                noSuccessors = true;
-
             std::list <Instruction *> flattened = instruction->flatten();
             std::list <Instruction *> :: iterator iit;
             for (iit = flattened.begin(); iit != flattened.end(); iit++) {
 
-                // terminating vertices retain all operands
-                std::list <Operand *> operands;
-                if (noSuccessors)
-                    operands = (*iit)->operands();
-                else
-                    operands = (*iit)->operands_read();
+                std::list <Operand *> operands = (*iit)->operands_read();
+                
                 std::list <Operand *> :: iterator oit;
                 for (oit = operands.begin(); oit != operands.end(); oit++) {
                     Operand * operand = *oit;
@@ -745,37 +794,179 @@ void SpicyQueso :: dead_code_elimination (QuesoGraph * quesoGraph) {
              it++) {
             Instruction * instruction = (Instruction *) it->second;
 
-            std::queue <Instruction *> to_delete;
+            std::set <Instruction *> to_delete;
 
             std::list <Instruction *> flattened = instruction->flatten();
             std::list <Instruction *> :: iterator iit;
             for (iit = flattened.begin(); iit != flattened.end(); iit++) {
                 Operand * operand_written = (*iit)->operand_written();
+
+                if (pass_deleted >= 0x80000)
+                    break;
+
                 if (operand_written == NULL)
                     continue;
 
-                if (vars_read.count(operand_written->queso()) == 0) {
-                    to_delete.push(*iit);
-                    another_pass = true;
+                if (    (vars_read.count(operand_written->queso()) == 0)
+                     && (liveVariables.count(operand_written->queso()) == 0)) {
+                    to_delete.insert(*iit);
+                    pass_deleted++;
                 }
             }
 
-            while (to_delete.size() > 0) {
-                // fix later, but will keep graph nodes from dying
-                if (instruction->flatten().size() == 1) {
-                    to_delete.pop();
-                    continue;
-                }
-                instruction->remove_depth_instruction(to_delete.front());
-                delete to_delete.front();
-                to_delete.pop();
-            }
+            // fix later, but will keep graph nodes from dying
+            if (instruction->g_depth_instructions().size() == 0)
+                continue;
+
+            instruction->remove_depth_instructions(to_delete);
+            break;
+
         }
     }
 }
 
+/* Step 1) Create a mapping of variables out for each vertex in the graph
+ * Step 2) Propagate forward
+ * Step 3) Consolidate all variables live at all terminating vertices
+ */
+std::set <std::string> SpicyQueso :: find_live_variables (QuesoGraph * quesoGraph) {
 
-bool spicyQueso_replace_operand (Instruction * instruction,
+    std::map <uint64_t, std::map <std::string, Operand *>> liveVariables;
+
+    // start by creating a mapping of variables out for each
+    // vertex in the graph
+    // we also keep track of all vertices with no successors, or terminating
+    // successors, here. we need the data later, and doing it here avoids
+    // and additional pass
+    std::list <uint64_t> noSuccessors;
+
+    std::map <uint64_t, GraphVertex *> :: iterator mit;
+    for (mit  = quesoGraph->g_vertices().begin();
+         mit != quesoGraph->g_vertices().end();
+         mit++) {
+
+        Instruction * instruction = (Instruction *) mit->second;
+        uint64_t vIndex = instruction->g_vIndex();
+
+        std::list <Instruction *> flattened = instruction->flatten();
+        std::list <Instruction *> :: iterator fit;
+        for (fit = flattened.begin(); fit != flattened.end(); fit++) {
+
+            Instruction * instruction = *fit;
+            std::list <Operand *> operands_read = instruction->operands_read();
+            std::list <Operand *> :: iterator oit;
+
+            for (oit = operands_read.begin(); oit != operands_read.end(); oit++) {
+                Operand * operand = *oit;
+                if (liveVariables[vIndex].count(operand->g_name()) == 0)
+                    liveVariables[vIndex][operand->g_name()] = operand->copy();
+            }
+            Operand * operand_written = instruction->operand_written();
+            if (operand_written == NULL)
+                continue;
+
+            if (liveVariables[vIndex].count(operand_written->g_name()) > 0)
+                delete liveVariables[vIndex][operand_written->g_name()];
+
+            liveVariables[vIndex][operand_written->g_name()] = operand_written->copy();
+        }
+
+        if (mit->second->g_successors().size() == 0)
+            noSuccessors.push_back(vIndex);
+    }
+
+    // propagate these variables forward
+    std::set <uint64_t> propagated;
+
+    std::stack <uint64_t> stack;
+    for (mit =  quesoGraph->g_vertices().begin();
+         mit != quesoGraph->g_vertices().end();
+         mit++) {
+
+        stack.push(mit->first);
+
+        while (stack.size() > 0) {
+            uint64_t vIndex = stack.top();
+            stack.pop();
+
+            std::list <GraphEdge *> predecessors = quesoGraph->g_vertex(vIndex)->g_predecessors();
+
+            if (predecessors.size() == 0) {
+                propagated.insert(vIndex);
+                continue;
+            }
+
+            bool predecessorsSet = true;
+            std::list <GraphEdge *> :: iterator it;
+            for (it = predecessors.begin(); it != predecessors.end(); it++) {
+                uint64_t predecessor_vIndex = (*it)->g_head()->g_vIndex();
+
+                if (predecessor_vIndex == vIndex)
+                    continue;
+
+                if (propagated.count(predecessor_vIndex) == 0) {
+                    if (predecessorsSet == true)
+                        stack.push(vIndex);
+                    predecessorsSet = false;
+                    stack.push(predecessor_vIndex);
+                }
+            }
+
+            if (predecessorsSet == false)
+                continue;
+
+            for (it = predecessors.begin(); it != predecessors.end(); it++) {
+                uint64_t predecessor_vIndex = (*it)->g_head()->g_vIndex();
+
+                std::map <std::string, Operand *> :: iterator oit;
+                for (oit =  liveVariables[predecessor_vIndex].begin();
+                     oit != liveVariables[predecessor_vIndex].end();
+                     oit++) {
+                    Operand * operand = oit->second;
+                    if (liveVariables[vIndex].count(operand->g_name()) == 0)
+                        liveVariables[vIndex][operand->g_name()] = operand->copy();
+                }
+            }
+        }
+    }
+
+    // find all vertices with no successors
+    std::set <std::string> result;
+    std::list <uint64_t> ::iterator noSucIt;
+    for (noSucIt = noSuccessors.begin(); noSucIt != noSuccessors.end(); noSucIt++) {
+        std::map <std::string, Operand *> :: iterator oit;
+        for (oit =  liveVariables[*noSucIt].begin();
+             oit != liveVariables[*noSucIt].end();
+             oit++) {
+            if (result.count(oit->second->queso()) == 0) {
+                result.insert(oit->second->queso());
+            }
+        }
+    }
+
+    // clean up
+    std::map <uint64_t, std::map <std::string, Operand *>> :: iterator dit;
+    for (dit = liveVariables.begin(); dit != liveVariables.end(); dit++) {
+        std::map <std::string, Operand *> :: iterator ddit;
+        for (ddit = dit->second.begin(); ddit != dit->second.end(); ddit++)
+            delete ddit->second;
+    }
+
+    return result;
+}
+
+
+bool SpicyQueso :: replace_with_assign (Instruction * instruction,
+                                        const Variable * needle,
+                                        const Operand * value) {
+    // create our assignment instruction
+    InstructionAssign assign(needle, value);
+
+    return instruction->replace_depth_instruction(instruction, &assign);
+}
+
+
+bool SpicyQueso :: replace_operand_instruction (Instruction * instruction,
                                  const std::string & needle,
                                  const Operand * newOperand) {
     bool result = false;
@@ -841,6 +1032,7 @@ bool spicyQueso_replace_operand (Instruction * instruction,
             result = true;
         }
     }
+    /*
     else if (InstructionLoadLE32 * loadLE32 = dynamic_cast<InstructionLoadLE32 *>(instruction)) {
         if (loadLE32->g_address()->queso() == needle) {
             loadLE32->s_address(newOperand);
@@ -857,6 +1049,7 @@ bool spicyQueso_replace_operand (Instruction * instruction,
             result = true;
         }
     }
+    */
     return result;
 }
 
@@ -928,7 +1121,7 @@ void SpicyQueso :: constant_fold_propagate (QuesoGraph * quesoGraph) {
              it != operandMap[solvedName].end();
              it++) {
 
-            if (! spicyQueso_replace_operand(*it, solvedName, &(solvedConstants[solvedName]))) {
+            if (! SpicyQueso::replace_operand_instruction(*it, solvedName, &(solvedConstants[solvedName]))) {
                 //printf(" [-] propagation failed\n");
                 continue;
             }
@@ -973,7 +1166,7 @@ void SpicyQueso :: replace_operand (QuesoGraph * quesoGraph,
         for (fit = flattened.begin(); fit != flattened.end(); fit++) {
             Instruction * instruction = (Instruction *) *fit;
 
-            spicyQueso_replace_operand(instruction, needleString, newOperand);
+            SpicyQueso::replace_operand_instruction(instruction, needleString, newOperand);
         }
     }
 }

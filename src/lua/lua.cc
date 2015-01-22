@@ -29,24 +29,29 @@ static const struct luaL_Reg lqueso_lib_f [] = {
     {"x86treeDepth",    lqueso_x86treeDepth},
     {"elf32",           lqueso_elf32_new},
     {"variable",        lqueso_variable},
+    {"array",           lqueso_array},
     {"constant",        lqueso_constant},
+    {"store",           lqueso_store},
     {"quesoGraph",      lqueso_quesoGraph},
     {NULL, NULL}
 };
 
 static const struct luaL_Reg lqueso_instruction_m [] = {
-    {"__gc",               lqueso_instruction_gc},
-    {"depth_instructions", lqueso_instruction_depth_instructions},
-    {"opcode",             lqueso_instruction_opcode},
-    {"queso",              lqueso_instruction_queso},
-    {"g_pc",               lqueso_instruction_g_pc},
-    {"g_vIndex",           lqueso_instruction_g_vIndex},
-    {"flatten",            lqueso_instruction_flatten},
-    {"operand_written",    lqueso_instruction_operand_written},
-    {"operands_read",      lqueso_instruction_operands_read},
-    {"g_successors",       lqueso_instruction_g_successors},
-    {"g_predecessors",     lqueso_instruction_g_predecessors},
-    {"json",               lqueso_instruction_json},
+    {"__gc",                lqueso_instruction_gc},
+    {"depth_instructions",  lqueso_instruction_depth_instructions},
+    {"opcode",              lqueso_instruction_opcode},
+    {"queso",               lqueso_instruction_queso},
+    {"g_pc",                lqueso_instruction_g_pc},
+    {"g_vIndex",            lqueso_instruction_g_vIndex},
+    {"flatten",             lqueso_instruction_flatten},
+    {"operand_written",     lqueso_instruction_operand_written},
+    {"operands_read",       lqueso_instruction_operands_read},
+    {"g_successors",        lqueso_instruction_g_successors},
+    {"g_predecessors",      lqueso_instruction_g_predecessors},
+    {"json",                lqueso_instruction_json},
+    {"ssa",                 lqueso_instruction_ssa},
+    {"replace_operand",     lqueso_instruction_replace_operand},
+    {"replace_with_assign", lqueso_instruction_replace_with_assign},
     {NULL, NULL}
 };
 
@@ -56,6 +61,9 @@ static const struct luaL_Reg lqueso_operand_m [] = {
     {"name",    lqueso_operand_name},
     {"ssa",     lqueso_operand_ssa},
     {"smtlib2", lqueso_operand_smtlib2},
+    {"queso",   lqueso_operand_queso},
+    {"value",   lqueso_operand_value},
+    {"bits",    lqueso_operand_bits},
     {NULL, NULL}
 };
 
@@ -252,6 +260,22 @@ int lqueso_variable (lua_State * L) {
 }
 
 
+int lqueso_array (lua_State * L) {
+    unsigned int bits = luaL_checkinteger(L, 1);
+    const char * name = luaL_checkstring(L, 2);
+    unsigned int address_bits = luaL_checkinteger(L, 3);
+
+    Array array(bits, name, address_bits);
+
+    if (lua_isnumber(L, 4))
+        array.s_ssa(luaL_checkinteger(L, 4));
+
+    lqueso_operand_push(L, &array);
+
+    return 1;
+}
+
+
 int lqueso_constant (lua_State * L) {
     unsigned int bits = luaL_checkinteger(L, 1);
     uint64_t value = luint64_check(L, 2);
@@ -270,6 +294,23 @@ int lqueso_quesoGraph (lua_State * L) {
     QuesoGraph * quesoGraph = new QuesoGraph;
 
     lqueso_quesoGraph_absorb(L, quesoGraph);
+
+    return 1;
+}
+
+
+int lqueso_store (lua_State * L) {
+    Operand * operand_0 = lqueso_operand_check(L, 1);
+    Operand * operand_1 = lqueso_operand_check(L, 2);
+    Operand * operand_2 = lqueso_operand_check(L, 3);
+
+    Array * mem = dynamic_cast<Array *>(operand_0);
+    if (mem == NULL)
+        luaL_error(L, "first argument must be array");
+
+    InstructionStore store(mem, operand_1, operand_2);
+
+    lqueso_instruction_push(L, &store);
 
     return 1;
 }
@@ -505,6 +546,58 @@ int lqueso_instruction_json (lua_State * L) {
 }
 
 
+int lqueso_instruction_ssa (lua_State * L) {
+    Instruction * instruction = lqueso_instruction_check(L, -1);
+
+    SpicyQueso::ssa_instruction(instruction);
+
+    lua_pop(L, 1);
+
+    return 0;
+}
+
+
+int lqueso_instruction_replace_operand (lua_State * L) {
+    Instruction * instruction = lqueso_instruction_check(L, 1);
+    const Operand * needle     = lqueso_operand_check(L, 2);
+    const Operand * newOperand = lqueso_operand_check(L, 3);
+
+    //printf("needle: %s\n", needle->queso().c_str());
+
+    std::list <Instruction *> flattened = instruction->flatten();
+    std::list <Instruction *> :: iterator it;
+    bool result = false;
+    for (it = flattened.begin(); it != flattened.end(); it++) {
+        if (SpicyQueso::replace_operand_instruction(*it, needle->queso(), newOperand)) {
+            //printf("replaced %s\n", (*it)->queso().c_str());
+            result = true;
+        }
+    }
+
+    if (result)
+        lua_pushboolean(L, 1);
+    else
+        lua_pushboolean(L, 0);
+
+    return 1;
+}
+
+
+int lqueso_instruction_replace_with_assign (lua_State * L) {
+    Instruction * instruction = lqueso_instruction_check(L, 1);
+    const Operand * needle = lqueso_operand_check(L, 2);
+    const Operand * value  = lqueso_operand_check(L, 3);
+
+    const Variable * needleVar = dynamic_cast<const Variable *>(needle);
+    if (needleVar == NULL)
+        luaL_error(L, "first argument needs to be a queso variable");
+
+    lua_pushboolean(L, SpicyQueso::replace_with_assign(instruction, needleVar, value));
+
+    return 1;
+}
+
+
 /**********************************************************
 * lqueso_operand
 **********************************************************/
@@ -594,6 +687,38 @@ int lqueso_operand_smtlib2 (lua_State * L) {
     lua_pop(L, 1);
 
     lua_pushstring(L, operand->smtlib2().c_str());
+
+    return 1;
+}
+
+
+int lqueso_operand_queso (lua_State * L) {
+    Operand * operand = lqueso_operand_check(L, -1);
+    lua_pop(L, 1);
+
+    lua_pushstring(L, operand->queso().c_str());
+
+    return 1;
+}
+
+
+int lqueso_operand_value (lua_State * L) {
+    Operand * operand = lqueso_operand_check(L, -1);
+    
+    if (operand->g_type() != CONSTANT)
+        luaL_error(L, "operand:value() can only be called on operands of type CONSTANT");
+
+    // oh wow that was slightly dangerous
+    luint64_push(L, ((Constant *)operand)->g_value());
+
+    return 1;
+}
+
+
+int lqueso_operand_bits (lua_State * L) {
+    Operand * operand = lqueso_operand_check(L, -1);
+    
+    lua_pushinteger(L, operand->g_bits());
 
     return 1;
 }

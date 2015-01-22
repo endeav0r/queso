@@ -832,7 +832,7 @@ bool QuesoX86 :: div () {
 
         ix86->pdi(new InstructionUdiv(tmp64, dividend, divisor64));
         ix86->pdi(new InstructionAssign(eax, tmp64));
-        ix86->pdi(new InstructionUmod(tmp64, dividend, divisor64));
+        ix86->pdi(new InstructionUrem(tmp64, dividend, divisor64));
         ix86->pdi(new InstructionAssign(edx, tmp64));
     }
     else {
@@ -883,7 +883,6 @@ bool QuesoX86 :: imul () {
         throw(std::runtime_error("imul ud_obj.operand[1].type == UD_NONE & operand[0].size != 32 | 8"));
     }
 
-
     Operand * lhs = NULL;
     Operand * rhs = NULL;
     if (    (ud_obj.operand[1].type == UD_NONE)
@@ -894,7 +893,7 @@ bool QuesoX86 :: imul () {
     else if (    (ud_obj.operand[1].type == UD_NONE)
               && (ud_obj.operand[0].size == 8)) {
         lhs = operandGet(0);
-        rhs = new Variable(32, "eax");
+        rhs = getRegister(UD_R_AL).copy();
     }
     else {
         lhs = operandGet(0);
@@ -921,13 +920,42 @@ bool QuesoX86 :: imul () {
         ix86->pdi(new InstructionShr(edxTmp, result, thirtyTwo));
         ix86->pdi(new InstructionAssign(edx, edxTmp));
 
-        Constant one(32, 1);
+        Constant zero(32, 0);
+        Variable CF(1, "CF");
+        Variable OF(1, "OF");
+        Constant one(1, 1);
+
+        ix86->pdi(new InstructionCmpEq(CF, edx, zero));
+        ix86->pdi(new InstructionXor(CF, CF, one));
+        ix86->pdi(new InstructionAssign(OF, CF));
+    }
+    else if (lhs->g_bits() == 8) {
+        Variable result(16, "result");
+        Variable lhs16(16, "lhs16");
+        Variable rhs16(16, "rhs16");
+
+        ix86->pdi(new InstructionSignExtend(&lhs16, lhs));
+        ix86->pdi(new InstructionSignExtend(&rhs16, rhs));
+        ix86->pdi(new InstructionMul(result, lhs16, rhs16));
+
+        Variable eax(32, "eax");
+        ix86->pdi(new InstructionAssign(eax, result));
+
+        Constant eight(16, 8);
+
+        ix86->pdi(new InstructionShr(result, result, eight));
+        Constant zero(16, 0);
+        Constant one(1, 1);
+
         Variable CF(1, "CF");
         Variable OF(1, "OF");
 
-        ix86->pdi(new InstructionCmpEq(CF, edx, one));
-        ix86->pdi(new InstructionCmpEq(OF, edx, one));
+        ix86->pdi(new InstructionCmpEq(CF, result, zero));
+        ix86->pdi(new InstructionXor(CF, CF, one));
+        ix86->pdi(new InstructionAssign(OF, CF));
     }
+    else
+        throw std::runtime_error("unsupported width for imul");
 
     delete lhs;
     delete rhs;
@@ -1360,6 +1388,13 @@ bool QuesoX86 :: sar () {
     else
         bits = operandGet(1);
 
+    if (bits->g_bits() != dst->g_bits()) {
+        Variable * bitsAtDstWidth = new Variable(dst->g_bits(), "bitsAtDstWidth");
+        ix86->pdi(new InstructionAssign(bitsAtDstWidth, bits));
+        delete bits;
+        bits = bitsAtDstWidth;
+    }
+
     Variable tmp(dst->g_bits(), "tmp");
     ix86->pdi(new InstructionShr(&tmp, dst, bits));
 
@@ -1522,6 +1557,13 @@ bool QuesoX86 :: shl () {
     Operand * dst  = operandGet(0);
     Operand * bits = operandGet(1);
 
+    if (bits->g_bits() != dst->g_bits()) {
+        Variable * bitsAtDstWidth = new Variable(dst->g_bits(), "bitsAtDstWidth");
+        ix86->pdi(new InstructionAssign(bitsAtDstWidth, bits));
+        delete bits;
+        bits = bitsAtDstWidth;
+    }
+
     Variable tmp(dst->g_bits(), "tmp");
     ix86->pdi(new InstructionShr(&tmp, dst, bits));
 
@@ -1564,6 +1606,13 @@ bool QuesoX86 :: shr () {
         bits = new Constant(dst->g_bits(), 1);
     else
         bits = operandGet(1);
+
+    if (bits->g_bits() != dst->g_bits()) {
+        Variable * bitsAtDstWidth = new Variable(dst->g_bits(), "bitsAtDstWidth");
+        ix86->pdi(new InstructionAssign(bitsAtDstWidth, bits));
+        delete bits;
+        bits = bitsAtDstWidth;
+    }
 
     Variable tmp(dst->g_bits(), "tmp");
     ix86->pdi(new InstructionShr(&tmp, dst, bits));
@@ -1634,7 +1683,7 @@ bool QuesoX86 :: stosd () {
 bool QuesoX86 :: sub () {
     Operand * lhs = operandGet(0);
     Operand * rhs = operandGet(1);
-    Variable tmp(32, "tmp");
+    Variable tmp(lhs->g_bits(), "tmp");
 
     Variable OFTmp(lhs->g_bits(), "OFTmp");
     Constant OFTmpShr(lhs->g_bits(), lhs->g_bits() - 1);

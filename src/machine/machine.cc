@@ -246,7 +246,7 @@ void Machine :: concreteExecution (Instruction * instruction) {
     }
 
     // UMOD
-    else if (const InstructionUmod * ins = dynamic_cast<const InstructionUmod *>(instruction)) {
+    else if (const InstructionUrem * ins = dynamic_cast<const InstructionUrem *>(instruction)) {
         MachineVariable dst(ins->g_dst()->g_name(),
                             operandValue(ins->g_lhs()) % operandValue(ins->g_rhs()),
                             ins->g_dst()->g_bits());

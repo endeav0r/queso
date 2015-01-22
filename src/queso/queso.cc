@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <iostream>
 #include <sstream>
+#include <queue>
 
 const char * QuesoOpcodeStrings [] = {
     "assign",
@@ -196,6 +197,67 @@ bool Instruction :: remove_depth_instruction (Instruction * instruction) {
         }
     }
     return false;
+}
+
+
+bool Instruction :: replace_depth_instruction (Instruction * oldInstruction,
+                                               Instruction * newInstruction) {
+    std::list <Instruction *> :: iterator it;
+    bool result = false;
+
+    for (it = depth_instructions.begin(); it != depth_instructions.end(); it++) {
+        if (*it = oldInstruction) {
+            bool push_front = false;
+            if (it == depth_instructions.begin())
+                push_front = true;
+
+            it = depth_instructions.erase(it);
+            depth_instructions.insert(it, newInstruction->copy());
+            result = true;
+            break;
+        }
+        if ((*it)->replace_depth_instruction(oldInstruction, newInstruction)) {
+            result = true;
+            break;
+        }
+    }
+
+    if (result)
+        flattened.clear();
+
+    return result;
+}
+
+
+bool Instruction :: remove_depth_instructions_ (std::set <Instruction *> & instructions) {
+    std::list <Instruction *> :: iterator it;
+
+    bool deleted = false;
+
+    for (it = depth_instructions.begin(); it != depth_instructions.end(); it++) {
+        while (    (it != depth_instructions.end()) 
+                && (instructions.count(*it) > 0)) {
+            deleted = true;
+            delete *it;
+            it = depth_instructions.erase(it);
+        }
+
+        if (it == depth_instructions.end())
+            break;
+
+        if ((*it)->remove_depth_instructions_(instructions))
+            deleted = true;
+    }
+
+    if (deleted)
+        flattened.clear();
+
+    return deleted;
+}
+
+
+void Instruction :: remove_depth_instructions (std::set <Instruction *> instructions) {
+    this->remove_depth_instructions_(instructions);
 }
 
 
@@ -781,10 +843,10 @@ json_t * InstructionArithmetic :: json () const {
         json_object_set(json, "instruction", json_string("mul"));
         break;
     case UDIV :
-        json_object_set(json, "instruction", json_string("div"));
+        json_object_set(json, "instruction", json_string("udiv"));
         break;
-    case UMOD :
-        json_object_set(json, "instruction", json_string("mod"));
+    case UREM :
+        json_object_set(json, "instruction", json_string("urem"));
         break;
     case AND :
         json_object_set(json, "instruction", json_string("and"));

@@ -260,7 +260,6 @@ InstructionLoadLE32 :: ~InstructionLoadLE32 () {
 
 
 void InstructionLoadLE32 :: init () {
-    /*
     Variable load8_0(8, "load8_0");
     Variable load8_1(8, "load8_1");
     Variable load8_2(8, "load8_2");
@@ -297,10 +296,9 @@ void InstructionLoadLE32 :: init () {
 
     push_depth_instruction(new InstructionAssign(&load32, &load8_0));
     push_depth_instruction(new InstructionOr(dst, dst, &load32));
-    */
 }
 
-
+/*
 std::list <Operand *> InstructionLoadLE32 :: operands_read () {
     std::list <Operand *> operands;
     operands.push_back(memory);
@@ -316,7 +314,7 @@ std::list <Operand *> InstructionLoadLE32 :: operands () {
     operands.push_back(address);
     return operands;
 }
-
+*/
 
 const std::string InstructionLoadLE32 :: queso () const {
     std::stringstream ss;
@@ -330,7 +328,7 @@ InstructionLoadLE32 * InstructionLoadLE32 :: copy () const {
     return new InstructionLoadLE32(dst, memory, address);
 }
 
-
+/*
 const std::string InstructionLoadLE32 :: smtlib2 () const {
     std::stringstream ss;
     ss << "(assert (= " << dst->smtlib2() << " "
@@ -341,7 +339,7 @@ const std::string InstructionLoadLE32 :: smtlib2 () const {
        << "(select " << memory->smtlib2() << " " << address->smtlib2() << "))))";
     return ss.str();
 }
-
+*/
 
 json_t * InstructionLoadLE32 :: json () const {
     json_t * json = Instruction::json();
@@ -457,7 +455,6 @@ InstructionStoreLE32 :: ~InstructionStoreLE32 () {
 
 
 void InstructionStoreLE32 :: init () {
-    /*
     Variable tmpAddress(address->g_bits(), "tmpAddress");
     Constant one(address->g_bits(), 1);
     Variable tmpShift(32, "tmpShift");
@@ -481,7 +478,6 @@ void InstructionStoreLE32 :: init () {
     push_depth_instruction(new InstructionShr(&tmpShift, &tmpShift, &eight));
     push_depth_instruction(new InstructionAssign(&tmp, &tmpShift));
     push_depth_instruction(new InstructionStore(memory, &tmpAddress, &tmp));
-    */
 }
 
 
@@ -497,7 +493,7 @@ InstructionStoreLE32 * InstructionStoreLE32 :: copy () const {
     return new InstructionStoreLE32(memory, address, value);
 }
 
-
+/*
 std::list <Operand *> InstructionStoreLE32 :: operands_read () {
     std::list <Operand *> operands;
     operands.push_back(memory);
@@ -528,7 +524,7 @@ const std::string InstructionStoreLE32 :: smtlib2 () const {
        << "))";
     return ss.str();
 }
-
+*/
 
 json_t * InstructionStoreLE32 :: json () const {
     json_t * json = Instruction::json();
