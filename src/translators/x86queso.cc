@@ -78,7 +78,7 @@ InstructionX86 * QuesoX86 :: translate (const uint8_t * data,
     case UD_Imovd   : movd(); break;
     case UD_Imovsb  : movsb(); break;
     case UD_Imovsd  : movsd(); break;
-    case UD_Imovsx  : movsd(); break;
+    //case UD_Imovsx  : movsd(); break;
     case UD_Imovzx  : movzx(); break;
     case UD_Iimul   : imul(); break;
     case UD_Ineg    : neg(); break;
@@ -151,6 +151,7 @@ InstructionX86 * QuesoX86 :: translate (const uint8_t * data,
 
 bool QuesoX86 :: rep () {
     Variable ecx(32, "ecx");
+    Variable ecx_minus_one(32, "ecx_minus_one");
     Constant one(32, 1);
     Constant zero(32, 0);
     Constant ins_size(32, ud_insn_len(&ud_obj));
@@ -159,10 +160,18 @@ bool QuesoX86 :: rep () {
     Variable tmp(1, "tmp");
 
 
-    ix86->pdi(new InstructionSub(ecx, ecx, one));
+    // check ecx to see whether we should loop
+    // tmp = (ecx == 0 ? 1 : 0)
     ix86->pdi(new InstructionCmpEq(tmp, ecx, zero));
+    // rep_eip = address of this instruction
     ix86->pdi(new InstructionSub(rep_eip, eip, ins_size));
+    // eip = (ecx == 0 ? eip : rep_eip)
     ix86->pdi(new InstructionIte(&eip, &tmp, &eip, &rep_eip));
+
+    ix86->pdi(new InstructionSub(ecx_minus_one, ecx, one));
+    // ecx = (ecx == 0 ? ecx : ecx_minus_one)
+    ix86->pdi(new InstructionIte(&ecx, &tmp, &ecx, &ecx_minus_one));
+
 
     return true;
 }
@@ -1197,26 +1206,26 @@ bool QuesoX86 :: movsd () {
     Variable edi(32, "edi");
     Array mem(8, "memory", 32);
 
-    Constant two(32, 2);
+    Constant four(32, 2);
 
-    Variable tmp(16, "tmp");
+    Variable tmp(32, "tmp");
 
-    ix86->pdi(new InstructionLoadLE16(&tmp, &mem, &esi));
-    ix86->pdi(new InstructionStoreLE16(&mem, &edi, &tmp));
+    ix86->pdi(new InstructionLoadLE32(&tmp, &mem, &esi));
+    ix86->pdi(new InstructionStoreLE32(&mem, &edi, &tmp));
 
-    Variable esi_add_two(32, "esi_add_two");
-    Variable edi_add_two(32, "edi_add_two");
-    Variable esi_sub_two(32, "esi_sub_two");
-    Variable edi_sub_two(32, "edi_sub_two");
+    Variable esi_add_four(32, "esi_add_four");
+    Variable edi_add_four(32, "edi_add_four");
+    Variable esi_sub_four(32, "esi_sub_four");
+    Variable edi_sub_four(32, "edi_sub_four");
 
-    ix86->pdi(new InstructionAdd(esi_add_two, esi, two));
-    ix86->pdi(new InstructionAdd(edi_add_two, edi, two));
-    ix86->pdi(new InstructionSub(esi_sub_two, esi, two));
-    ix86->pdi(new InstructionSub(edi_sub_two, edi, two));
+    ix86->pdi(new InstructionAdd(esi_add_four, esi, four));
+    ix86->pdi(new InstructionAdd(edi_add_four, edi, four));
+    ix86->pdi(new InstructionSub(esi_sub_four, esi, four));
+    ix86->pdi(new InstructionSub(edi_sub_four, edi, four));
 
     Variable DF(1, "DF");
-    ix86->pdi(new InstructionIte(&esi, &DF, &esi_sub_two, &esi_add_two));
-    ix86->pdi(new InstructionIte(&edi, &DF, &edi_sub_two, &edi_add_two));
+    ix86->pdi(new InstructionIte(&esi, &DF, &esi_sub_four, &esi_add_four));
+    ix86->pdi(new InstructionIte(&edi, &DF, &edi_sub_four, &edi_add_four));
 
     return true;
 }
