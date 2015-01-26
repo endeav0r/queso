@@ -32,6 +32,7 @@ static const struct luaL_Reg lqueso_lib_f [] = {
     {"array",           lqueso_array},
     {"constant",        lqueso_constant},
     {"store",           lqueso_store},
+    {"assign",          lqueso_assign},
     {"quesoGraph",      lqueso_quesoGraph},
     {NULL, NULL}
 };
@@ -311,6 +312,22 @@ int lqueso_store (lua_State * L) {
     InstructionStore store(mem, operand_1, operand_2);
 
     lqueso_instruction_push(L, &store);
+
+    return 1;
+}
+
+
+int lqueso_assign (lua_State * L) {
+    Operand * dstOperand = lqueso_operand_check(L, 1);
+    Operand * src = lqueso_operand_check(L, 2);
+
+    Variable * dst = dynamic_cast<Variable *>(dstOperand);
+    if (dst == NULL)
+        luaL_error(L, "first argument must be variable");
+
+    InstructionAssign assign(dst, src);
+
+    lqueso_instruction_push(L, &assign);
 
     return 1;
 }
@@ -709,7 +726,8 @@ int lqueso_operand_value (lua_State * L) {
         luaL_error(L, "operand:value() can only be called on operands of type CONSTANT");
 
     // oh wow that was slightly dangerous
-    luint64_push(L, ((Constant *)operand)->g_value());
+    Constant * constant = dynamic_cast<Constant *>(operand);
+    luint64_push(L, constant->g_value());
 
     return 1;
 }

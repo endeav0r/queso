@@ -31,8 +31,9 @@ int lqueso_x86treeDepth    (lua_State * L);
 int lqueso_variable        (lua_State * L);
 int lqueso_array           (lua_State * L);
 int lqueso_constant        (lua_State * L);
-int lqueso_quesoGraph      (lua_State * L);
 int lqueso_store           (lua_State * L);
+int lqueso_assign          (lua_State * L);
+int lqueso_quesoGraph      (lua_State * L);
 
 Instruction * lqueso_instruction_check (lua_State * L, int position);
 int lqueso_instruction_push                (lua_State * L, Instruction * instruction);
