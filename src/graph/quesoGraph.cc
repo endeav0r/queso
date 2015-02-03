@@ -249,7 +249,7 @@ QuesoGraph * QuesoGraph :: slice_backward (Operand * operand) {
 
 QuesoGraph * QuesoGraph :: slice_backward_thin (Operand * operand) {
     Instruction * startInstruction = NULL;
-    std::set <std::string> dominators;
+    std::set <std::string> influencers;
 
     // first, let's find where this operand is set
     std::map <uint64_t, GraphVertex *> :: iterator graphIt;
@@ -274,9 +274,9 @@ QuesoGraph * QuesoGraph :: slice_backward_thin (Operand * operand) {
                 std::list <Operand *> operands_read = ins->operands_read();
                 std::list <Operand *> :: iterator opIt;
                 for (opIt = operands_read.begin(); opIt != operands_read.end(); opIt++) {
-                    dominators.insert((*opIt)->queso());
+                    influencers.insert((*opIt)->queso());
                 }
-                dominators.insert(operand->queso());
+                influencers.insert(operand->queso());
 
                 graphIt = g_vertices().end();
                 graphIt--;
@@ -291,7 +291,7 @@ QuesoGraph * QuesoGraph :: slice_backward_thin (Operand * operand) {
     QuesoGraph * quesoGraph = new QuesoGraph();
 
     // now we will construct a graph containing all instructions from predecessor
-    // instructions that contain dominators of this operand
+    // instructions that influence this instruction
     std::set <Instruction *> touched;
     std::queue <QuesoGraphSlice> queue;
 
@@ -317,12 +317,12 @@ QuesoGraph * QuesoGraph :: slice_backward_thin (Operand * operand) {
             if (flatIns->operand_written() == NULL)
                 continue;
 
-            if (dominators.count(flatIns->operand_written()->queso()) > 0) {
+            if (influencers.count(flatIns->operand_written()->queso()) > 0) {
 
                 std::list <Operand *> operands_read = flatIns->operands_read();
                 std::list <Operand *> :: iterator opIt;
                 for (opIt = operands_read.begin(); opIt != operands_read.end(); opIt++) {
-                    dominators.insert((*opIt)->queso());
+                    influencers.insert((*opIt)->queso());
                 }
 
                 Instruction * newSuccessor = flatIns->copy();

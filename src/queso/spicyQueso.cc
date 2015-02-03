@@ -962,7 +962,23 @@ bool SpicyQueso :: replace_with_assign (Instruction * instruction,
     // create our assignment instruction
     InstructionAssign assign(needle, value);
 
-    return instruction->replace_depth_instruction(instruction, &assign);
+    return SpicyQueso::replace_with_instruction(instruction, needle, &assign);
+}
+
+
+bool SpicyQueso :: replace_with_instruction (Instruction * instruction,
+                                             const Operand * needle,
+                                             const Instruction * newInstruction) {
+    std::list <Instruction *> :: iterator it;
+    std::list <Instruction *> flattened = instruction->flatten();
+    for (it = flattened.begin(); it != flattened.end(); it++) {
+        if (    ((*it)->operand_written() != NULL)
+             && ((*it)->operand_written()->queso() == needle->queso())) {
+            return instruction->replace_depth_instruction(*it, newInstruction);
+        }
+    }
+
+    return false;
 }
 
 

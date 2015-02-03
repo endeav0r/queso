@@ -173,7 +173,7 @@ class Instruction : public GraphVertex {
         void push_depth_instruction    (Instruction * instruction);
         bool remove_depth_instruction  (Instruction * instruction);
         bool replace_depth_instruction (Instruction * oldInstruction,
-                                        Instruction * newInstruction);
+                                        const Instruction * newInstruction);
         void remove_depth_instructions  (std::set <Instruction *> instructions);
         bool remove_depth_instructions_ (std::set <Instruction *> & instructions);
         

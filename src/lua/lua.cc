@@ -38,21 +38,24 @@ static const struct luaL_Reg lqueso_lib_f [] = {
 };
 
 static const struct luaL_Reg lqueso_instruction_m [] = {
-    {"__gc",                lqueso_instruction_gc},
-    {"depth_instructions",  lqueso_instruction_depth_instructions},
-    {"opcode",              lqueso_instruction_opcode},
-    {"queso",               lqueso_instruction_queso},
-    {"g_pc",                lqueso_instruction_g_pc},
-    {"g_vIndex",            lqueso_instruction_g_vIndex},
-    {"flatten",             lqueso_instruction_flatten},
-    {"operand_written",     lqueso_instruction_operand_written},
-    {"operands_read",       lqueso_instruction_operands_read},
-    {"g_successors",        lqueso_instruction_g_successors},
-    {"g_predecessors",      lqueso_instruction_g_predecessors},
-    {"json",                lqueso_instruction_json},
-    {"ssa",                 lqueso_instruction_ssa},
-    {"replace_operand",     lqueso_instruction_replace_operand},
-    {"replace_with_assign", lqueso_instruction_replace_with_assign},
+    {"__gc",                     lqueso_instruction_gc},
+    {"depth_instructions",       lqueso_instruction_depth_instructions},
+    {"opcode",                   lqueso_instruction_opcode},
+    {"queso",                    lqueso_instruction_queso},
+    {"g_pc",                     lqueso_instruction_g_pc},
+    {"g_vIndex",                 lqueso_instruction_g_vIndex},
+    {"flatten",                  lqueso_instruction_flatten},
+    {"operand_written",          lqueso_instruction_operand_written},
+    {"operands_read",            lqueso_instruction_operands_read},
+    {"g_successors",             lqueso_instruction_g_successors},
+    {"g_predecessors",           lqueso_instruction_g_predecessors},
+    {"json",                     lqueso_instruction_json},
+    {"ssa",                      lqueso_instruction_ssa},
+    {"replace_operand",          lqueso_instruction_replace_operand},
+    {"replace_with_assign",      lqueso_instruction_replace_with_assign},
+    {"replace_with_instruction", lqueso_instruction_replace_with_instruction},
+    {"address",                  lqueso_instruction_address},
+    {"value",                    lqueso_instruction_value},
     {NULL, NULL}
 };
 
@@ -415,7 +418,12 @@ int lqueso_instruction_depth_instructions (lua_State * L) {
          it != instruction->g_depth_instructions().end();
          it++) {
         lua_pushinteger(L, i++);
-        lqueso_instruction_push(L, *it);
+        lqueso_instruction_absorb(L, *it);
+        lua_newtable(L);
+        lua_pushstring(L, "parent_instruction");
+        lua_pushvalue(L, 1);
+        lua_settable(L, -3);
+        lua_setuservalue(L, -2);
         lua_settable(L, -3);
     }
 
@@ -464,7 +472,12 @@ int lqueso_instruction_flatten (lua_State * L) {
     int i = 1;
     for (it = flattened.begin(); it != flattened.end(); it++) {
         lua_pushinteger(L, i++);
-        lqueso_instruction_push(L, *it);
+        lqueso_instruction_absorb(L, *it);
+        lua_newtable(L);
+        lua_pushstring(L, "parent_instruction");
+        lua_pushvalue(L, 1);
+        lua_settable(L, -3);
+        lua_setuservalue(L, -2);
         lua_settable(L, -3);
     }
 
@@ -615,12 +628,49 @@ int lqueso_instruction_replace_with_assign (lua_State * L) {
 }
 
 
+int lqueso_instruction_replace_with_instruction (lua_State * L) {
+    Instruction * instruction = lqueso_instruction_check(L, 1);
+    const Operand * needle = lqueso_operand_check(L, 2);
+    const Instruction * newInstruction = lqueso_instruction_check(L, 3);
+
+    lua_pushboolean(L, SpicyQueso::replace_with_instruction(instruction, needle, newInstruction));
+
+    return 1;
+}
+
+
+int lqueso_instruction_address (lua_State * L) {
+    Instruction * instruction = lqueso_instruction_check(L, 1);
+
+    if (InstructionLoad * load = dynamic_cast<InstructionLoad *>(instruction))
+        lqueso_operand_push(L, load->g_address());
+    else if (InstructionStore * store = dynamic_cast<InstructionStore *>(instruction))
+        lqueso_operand_push(L, store->g_address());
+    else
+        luaL_error(L, "instruction:address must be called over a load or store");
+
+    return 1;
+}
+
+
+int lqueso_instruction_value (lua_State * L) {
+    Instruction * instruction = lqueso_instruction_check(L, 1);
+
+    if (InstructionStore * store = dynamic_cast<InstructionStore *>(instruction))
+        lqueso_operand_push(L, store->g_value());
+    else
+        luaL_error(L, "instruction:value must be called over a store");
+
+    return 1;
+}
+
+
 /**********************************************************
 * lqueso_operand
 **********************************************************/
 
 
-int lqueso_operand_push (lua_State * L, Operand * operand) {
+int lqueso_operand_push (lua_State * L, const Operand * operand) {
     Operand ** oper = (Operand **) lua_newuserdata(L, sizeof(Operand **));
     luaL_getmetatable(L, "lqueso.operand");
     lua_setmetatable(L, -2);

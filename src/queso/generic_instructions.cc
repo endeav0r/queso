@@ -325,7 +325,10 @@ const std::string InstructionLoadLE32 :: queso () const {
 
 
 InstructionLoadLE32 * InstructionLoadLE32 :: copy () const {
-    return new InstructionLoadLE32(dst, memory, address);
+    InstructionLoadLE32 * load = new InstructionLoadLE32(dst, memory, address);
+    load->copy_depth_instructions(this);
+
+    return load;
 }
 
 /*
@@ -490,7 +493,10 @@ const std::string InstructionStoreLE32 :: queso () const {
 
 
 InstructionStoreLE32 * InstructionStoreLE32 :: copy () const {
-    return new InstructionStoreLE32(memory, address, value);
+    InstructionStoreLE32 * store = new InstructionStoreLE32(memory, address, value);
+    store->copy_depth_instructions(this);
+
+    return store;
 }
 
 /*

@@ -201,16 +201,12 @@ bool Instruction :: remove_depth_instruction (Instruction * instruction) {
 
 
 bool Instruction :: replace_depth_instruction (Instruction * oldInstruction,
-                                               Instruction * newInstruction) {
+                                               const Instruction * newInstruction) {
     std::list <Instruction *> :: iterator it;
     bool result = false;
 
     for (it = depth_instructions.begin(); it != depth_instructions.end(); it++) {
-        if (*it = oldInstruction) {
-            bool push_front = false;
-            if (it == depth_instructions.begin())
-                push_front = true;
-
+        if (*it == oldInstruction) {
             it = depth_instructions.erase(it);
             depth_instructions.insert(it, newInstruction->copy());
             result = true;

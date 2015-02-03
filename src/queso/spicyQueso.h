@@ -214,6 +214,13 @@ class SpicyQueso {
                                          const Variable * needle,
                                          const Operand * value);
 
+        /* Looks for instructions that assign to needle. Replaces
+         * that instruction with given instruction.
+         */
+        static bool replace_with_instruction (Instruction * instruction,
+                                              const Operand * needle,
+                                              const Instruction * newInstruction);
+
         /* Replace operand in a single instruction.
          * Returns false if operand replaced, false otherwise.
          * If true, newOperand is copied.
