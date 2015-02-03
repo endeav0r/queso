@@ -78,7 +78,7 @@ InstructionX86 * QuesoX86 :: translate (const uint8_t * data,
     case UD_Imovd   : movd(); break;
     case UD_Imovsb  : movsb(); break;
     case UD_Imovsd  : movsd(); break;
-    //case UD_Imovsx  : movsd(); break;
+    case UD_Imovsx  : movsx(); break;
     case UD_Imovzx  : movzx(); break;
     case UD_Iimul   : imul(); break;
     case UD_Ineg    : neg(); break;
