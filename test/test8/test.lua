@@ -9,7 +9,7 @@ LOOP_ITERATIONS = 16
 MAX_INPUT_SIZE = 256
 
 -- set to name of input file
-INPUT_FILENAME = 'input'
+INPUT_FILENAME = 'testinput'
 
 -- set this true to eliminate variables as memory addresses
 -- all non-tainted memory addresses are given their runtime values
@@ -60,17 +60,37 @@ function parse_eflags (eflags)
 end
 
 
+function graphVariablesSmtlib2 (quesoGraph)
+    local variables = {}
+    for k,instruction in pairs(quesoGraph:g_vertices()) do
+        for k,instruction in pairs(instruction:flatten()) do
+            for k,operand in pairs(instruction:operands()) do
+                variables[operand:smtlib2()] = operand:smtlib2()
+            end
+        end
+    end
+
+    return variables
+end
+
+
+fh = io.open('log', 'w')
+fh:write('')
+fh:close()
+
 local log_lines = {}
 function log (line)
     --print(line)
-    table.insert(log_lines, line)
+    --table.insert(log_lines, line)
 end
 
 
 function write_log ()
-    fh = io.open('log', 'w')
-    fh:write(table.concat(log_lines, '\n'))
+    fh = io.open('log', 'a')
+    fh:write(table.concat(log_lines, '\n') .. '\n')
     fh:close()
+
+    log_lines = {}
 end
 
 
@@ -302,9 +322,11 @@ function parseBapTrace (traceFileName)
                         replaced[needle:queso()] = true
 
                         if not result then
-                            print('needle=' .. needle:queso(), lqueso.constant(32, operand.value_int):queso())
+                            log('needle=' .. needle:queso(), lqueso.constant(32, operand.value_int):queso())
+                            write_log()
                             printQueso(instruction, 2)
-                            error('replace failed')
+                            log('replace failed')
+                            -- we just fail silently into the night
                         end
 
                         -- we need to 
@@ -396,8 +418,8 @@ function traceInput (inputString)
 end
 
 
--- returns result, zfTree and path taken
-function flipFlags ()
+
+function flipFlags (input)
     quesoGraph, fileTaints = parseBapTrace('trace.bpt')
 
     quesoGraph:blockize()
@@ -410,14 +432,11 @@ function flipFlags ()
     -- collect ZF
     for k,instruction in pairs(quesoGraph:g_vertices()) do
         for k,instruction in pairs(instruction:flatten()) do
-            for k,operand in pairs(instruction:operands_read()) do
-                if operand:name() == 'ZF' then --or 
-                   --operand:name() == 'SF' or
-                   --operand:name() == 'CF' or
-                   --operand:name() == 'OF' then
-                    log('found flag ' .. operand:smtlib2())
-                    table.insert(flags, {operand=operand})
-                end
+            if instruction:opcode() == 'ite' and
+               instruction:condition():name() ~= 'DF' and
+               string.match(instruction:dst():name(), 'eip') then
+                log('found flag ' .. instruction:condition():smtlib2() .. ' -- ' .. instruction:queso())
+                table.insert(flags, {operand=instruction:condition()})
             end
         end
     end
@@ -465,7 +484,6 @@ function flipFlags ()
 
     -- set flags to their original value
     for k,flag in pairs(flags) do
-        log(flag.operand:smtlib2() .. ' = ' .. result[flag.operand:smtlib2()])
         flags[k].value = result[flag.operand:smtlib2()]
     end
 
@@ -474,13 +492,14 @@ function flipFlags ()
     local flippedFlags = {}
 
     for k,flag in pairs(flags) do
-        local declarations = {}
-        local values = {}
-        local assertions = {}
-        local i = 0
-
+        -- backSlice, shit gets real
         local backSlice = quesoGraph:slice_backward_thin(flag.operand)
         backSlice:blockize()
+
+        print()
+        print()
+        for k,v in pairs(backSlice:g_vertices()) do print(printQueso(v, 2)) end
+        --backSlice = quesoGraph
 
         log('backSlice over ' .. flag.operand:smtlib2() .. ' ' ..
             #backSlice:g_vertices() .. ' instructions')
@@ -488,17 +507,31 @@ function flipFlags ()
             log(printQueso(instruction, 1))
         end
 
+        local backSliceVariables = graphVariablesSmtlib2(backSlice)
+
+        local declarations = {}
+        local values = {}
+        local assertions = {}
+        local in_vars = {}
+        local i = 0
         -- set up variables to solve for inputs
         for k,t in pairs(fileTaints) do
-            table.insert(declarations, '(declare-fun in_' .. tostring(i) .. ' () (_ BitVec 8))')
-            table.insert(assertions, '(assert (= in_' .. tostring(i) .. ' memory_' ..
-                                     string.format('%08x', t.address) .. '_0))')
-            table.insert(values, 'in_' .. tostring(i))
+            -- ensure this memory location is in the backSlice
+
+            local memoryVariable = 'memory_' .. string.format('%08x', t.address) .. '_0'
+            if backSliceVariables[memoryVariable] ~= nil then
+                table.insert(declarations, '(declare-fun in_' .. tostring(i) .. ' () (_ BitVec 8))')
+                table.insert(assertions, '(assert (= in_' .. tostring(i) .. ' memory_' ..
+                                         string.format('%08x', t.address) .. '_0))')
+                table.insert(values, 'in_' .. tostring(i))
+                in_vars[i+1] = 'in_' .. tostring(i)
+            else
+                in_vars[i+1] = string.byte(input:sub(i+1, i+1))
+            end
             i = i + 1
         end
 
-
-        -- for every flag
+        -- for every flag,
         for k,f in pairs(flags) do
             -- if we have not yet flipped this flag, and this is the current
             -- flag in our loop
@@ -512,21 +545,40 @@ function flipFlags ()
                 local value = 0
                 if f.value == 0 then value = 1 end
                 log('solving for ' .. f.operand:smtlib2() .. ' == ' .. value)
+                print('solving for ' .. f.operand:smtlib2() .. ' == ' .. value)
                 table.insert(assertions, '(assert (= ' .. f.operand:smtlib2() .. ' #b' .. value .. '))')
                 table.insert(values, f.operand:smtlib2())
+                -- don't worry about the rest of the flags
+                break
             -- if this is not the current flag, set to regular
-            -- runtime value
-            else
+            -- runtime value IF it's in the backslice
+            elseif backSliceVariables[f.operand:smtlib2()] ~= nil then
                 table.insert(assertions, '(assert (= ' .. f.operand:smtlib2() .. ' #b' .. f.value .. '))')
                 table.insert(values, f.operand:smtlib2())
             end
         end
-
         -- the direction flag will be execution dependent, but we'll set it to 0
         -- to begin. works with current target
         table.insert(assertions, '(assert (= DF_0 #b0))')
 
-        table.insert(newInputs, z3Solve(forZ3(quesoGraph, declarations, assertions, values)))
+        local newInput = z3Solve(forZ3(backSlice, declarations, assertions, values))
+        if newInput == false then
+            print('unsat')
+        else
+            print('hero of the battle')
+            newerInput = {}
+
+            for k,var in pairs(in_vars) do
+                if type(var) == 'string' then
+                    newerInput[k] = newInput[var]
+                else
+                    newerInput[k] = var
+                end
+            end
+            table.insert(newInputs, newerInput)
+        end
+
+        if flag.operand:smtlib2() == 'ZF_2' then sys.exit() end
     end
 
     return newInputs
@@ -534,9 +586,9 @@ end
 
 
 fh = io.open(INPUT_FILENAME, 'rb')
-local inputs = {fh:read()}
+local inputs = {fh:read('*a')}
 fh:close()
-local inputs_dedup = {}
+inputs_dedup = {}
 for k,input in pairs(inputs) do
     inputs_dedup[input] = true
 end
@@ -549,41 +601,26 @@ while loopi < LOOP_ITERATIONS do
     -- loop through all of our pending inputs
     for k,input in pairs(inputs) do
         traceInput(input)
-        for k,newInput in pairs(flipFlags()) do
+        for k,newInput in pairs(flipFlags(input)) do
             table.insert(newInputs, newInput)
         end
     end
 
-    log('newInputs pre undup ' .. #newInputs)
-    inputs = {}
-    -- for each new input
-    for k,newInput in pairs(newInputs) do
-        -- skip unsat new inputs
-        if newInput ~= false then
-            -- nextInput will be a table of ints where each int is a byte of input
-            local nextInput = {}
-            for i=0,256 do
-                if newInput['in_' .. i] == nil then break end
-                table.insert(nextInput, newInput['in_' .. i])
-            end
-            --print(table.concat(map(function (x) return string.format('%02x', x) end, nextInput), ''))
-            table.insert(inputs, table.concat(map(function (x) return string.char(x) end, nextInput)))
-        end
-    end
+    inputs = map(function (y) return 
+                    table.concat(map(function (x) return string.char(x) end, y))
+                 end,
+                 newInputs)
 
-    table.sort(inputs)
-    -- dedup input
     local i = 1
     while i < #inputs do
-        if inputs_dedup[inputs[i] ] == true then
+        if inputs_dedup[inputs[i]] then
             table.remove(inputs, i)
+            print('input deduped')
         else
-            inputs_dedup[inputs[i] ] = true
+            inputs_dedup[inputs[i]] = true
             i = i + 1
         end
     end
-
-    log('inputs post-undup ' .. #inputs)
 
     -- write out all of the new outputs
     for k,input in pairs(inputs) do
@@ -594,6 +631,8 @@ while loopi < LOOP_ITERATIONS do
     end
 
     loopi = loopi + 1
+
+    write_log()
 end
 
 
@@ -621,7 +660,5 @@ for key,value in pairs(results) do
 end
 
 ]]--
-
-print('write log')
 
 write_log()
