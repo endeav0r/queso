@@ -47,6 +47,7 @@ static const struct luaL_Reg lqueso_instruction_m [] = {
     {"flatten",                  lqueso_instruction_flatten},
     {"operand_written",          lqueso_instruction_operand_written},
     {"operands_read",            lqueso_instruction_operands_read},
+    {"operands",                 lqueso_instruction_operands},
     {"g_successors",             lqueso_instruction_g_successors},
     {"g_predecessors",           lqueso_instruction_g_predecessors},
     {"json",                     lqueso_instruction_json},
@@ -56,6 +57,8 @@ static const struct luaL_Reg lqueso_instruction_m [] = {
     {"replace_with_instruction", lqueso_instruction_replace_with_instruction},
     {"address",                  lqueso_instruction_address},
     {"value",                    lqueso_instruction_value},
+    {"dst",                      lqueso_instruction_dst},
+    {"condition",                lqueso_instruction_condition},
     {NULL, NULL}
 };
 
@@ -516,6 +519,24 @@ int lqueso_instruction_operands_read (lua_State * L) {
 }
 
 
+int lqueso_instruction_operands (lua_State * L) {
+    Instruction * instruction = lqueso_instruction_check(L, -1);
+    std::list <Operand *> operands = instruction->operands();
+    lua_pop(L, 1);
+
+    std::list <Operand *> :: iterator it;
+    lua_newtable(L);
+    int i = 1;
+    for (it = operands.begin(); it != operands.end(); it++) {
+        lua_pushinteger(L, i++);
+        lqueso_operand_push(L, *it);
+        lua_settable(L, -3);
+    }
+
+    return 1;
+}
+
+
 int lqueso_instruction_g_successors (lua_State * L) {
     Instruction * instruction = lqueso_instruction_check(L, -1);
     const std::list <GraphEdge *> successors = instruction->g_successors();
@@ -660,6 +681,30 @@ int lqueso_instruction_value (lua_State * L) {
         lqueso_operand_push(L, store->g_value());
     else
         luaL_error(L, "instruction:value must be called over a store");
+
+    return 1;
+}
+
+
+int lqueso_instruction_dst (lua_State * L) {
+    Instruction * instruction = lqueso_instruction_check(L, 1);
+
+    if (InstructionIte * ite = dynamic_cast<InstructionIte *>(instruction))
+        lqueso_operand_push(L, ite->g_dst());
+    else
+        luaL_error(L, "instruction:dst must be called over a ite");
+
+    return 1;
+}
+
+
+int lqueso_instruction_condition (lua_State * L) {
+    Instruction * instruction = lqueso_instruction_check(L, 1);
+
+    if (InstructionIte * ite = dynamic_cast<InstructionIte *>(instruction))
+        lqueso_operand_push(L, ite->g_condition());
+    else
+        luaL_error(L, "instruction:condition must be called over a ite");
 
     return 1;
 }

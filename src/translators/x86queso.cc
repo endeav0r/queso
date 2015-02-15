@@ -44,6 +44,7 @@ InstructionX86 * QuesoX86 :: translate (const uint8_t * data,
     case UD_Iadd    : add(); break;
     case UD_Iand    : And(); break;
     case UD_Ibsf    : bsf(); break;
+    case UD_Ibt     : bt(); break;
     case UD_Icall   : call(); break;
     case UD_Icld    : cld(); break;
     case UD_Icmova  : cmova(); break;
@@ -304,6 +305,7 @@ Variable QuesoX86 :: getRegister (unsigned int reg) {
     case UD_R_CX :
     case UD_R_DX :
     case UD_R_SI :
+    case UD_R_DI :
     case UD_R_BP : {
         Variable rx = 
             (reg == UD_R_AX ? Variable(16, "ax") :
@@ -312,7 +314,8 @@ Variable QuesoX86 :: getRegister (unsigned int reg) {
                (reg == UD_R_DX ? Variable(16, "dx") :
                 (reg == UD_R_BP ? Variable(16, "bp") :
                  (reg == UD_R_SI ? Variable(16, "si") :
-                Variable(0, "error")))))));
+                  (reg == UD_R_DI ? Variable(16, "di") :
+                Variable(0, "error"))))))));
         ix86->pdi(new InstructionAssign(rx, fullReg(reg)));
         return rx;
     }
@@ -328,7 +331,7 @@ Variable QuesoX86 :: getRegister (unsigned int reg) {
     }
 
     std::stringstream ss;
-    ss << "unknown register... " << reg;
+    ss << "unknown register... " << reg << " :: " << ud_insn_asm(&ud_obj);
     throw std::runtime_error(ss.str());
 }
 
@@ -644,6 +647,32 @@ bool QuesoX86 :: bsf () {
 
     delete dst;
     delete src;
+
+    return true;
+}
+
+
+bool QuesoX86 :: bt () {
+    Operand * base = operandGet(0);
+    Operand * offset = operandGet(1);
+
+    Variable tmp(base->g_bits(), "tmp");
+
+    if (offset->g_bits() == base->g_bits()) {
+        ix86->pdi(new InstructionShr(&tmp, base, offset));
+        Variable CF(1, "CF");
+        ix86->pdi(new InstructionAssign(&CF, &tmp));
+    }
+    else {
+        Variable tmp2(base->g_bits(), "tmp2");
+        ix86->pdi(new InstructionAssign(&tmp2, offset));
+        ix86->pdi(new InstructionShr(&tmp2, base, &tmp2));
+        Variable CF(1, "CF");
+        ix86->pdi(new InstructionAssign(&CF, &tmp));
+    }
+
+    delete base;
+    delete offset;
 
     return true;
 }
@@ -1094,7 +1123,22 @@ bool QuesoX86 :: jle () {
 
 
 bool QuesoX86 :: jmp () {
-    return jcc(Constant(1, 1));
+    Variable eip(32, "eip");
+    Operand * dst = operandGet(0);
+
+    if (ud_obj.operand[0].type == UD_OP_JIMM) {
+        Variable tmp(32, "tmp");
+
+        ix86->pdi(new InstructionSignExtend(&tmp, dst));
+        ix86->pdi(new InstructionAdd(&eip, &eip, &tmp));
+    }
+    else {
+        ix86->pdi(new InstructionAssign(&eip, dst));
+    }
+
+    delete dst;
+
+    return true;
 }
 
 
@@ -1331,8 +1375,12 @@ bool QuesoX86 :: Or () {
     Operand * rhs = operandGet(1);
     Variable tmp(lhs->g_bits(), "tmp");
 
-    ix86->pdi(new InstructionSignExtend(&tmp, rhs));
-    ix86->pdi(new InstructionOr(&tmp, lhs, &tmp));
+    if (lhs->g_bits() != rhs->g_bits()) {
+        ix86->pdi(new InstructionSignExtend(&tmp, rhs));
+        ix86->pdi(new InstructionOr(&tmp, lhs, &tmp));
+    }
+    else
+        ix86->pdi(new InstructionOr(&tmp, lhs, rhs));
 
     operandSet(0, &tmp);
 
@@ -1574,7 +1622,7 @@ bool QuesoX86 :: shl () {
     }
 
     Variable tmp(dst->g_bits(), "tmp");
-    ix86->pdi(new InstructionShr(&tmp, dst, bits));
+    ix86->pdi(new InstructionShl(&tmp, dst, bits));
 
     // last bit shifted out of result
     Variable CF(1, "CF");

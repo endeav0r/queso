@@ -106,6 +106,7 @@ class QuesoX86 : public Translator {
         bool add ();
         bool And ();
         bool bsf ();
+        bool bt ();
         bool call ();
         bool cld ();
         bool cmova ();

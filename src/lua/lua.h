@@ -47,6 +47,7 @@ int lqueso_instruction_g_vIndex                 (lua_State * L);
 int lqueso_instruction_flatten                  (lua_State * L);
 int lqueso_instruction_operand_written          (lua_State * L);
 int lqueso_instruction_operands_read            (lua_State * L);
+int lqueso_instruction_operands                 (lua_State * L);
 int lqueso_instruction_g_successors             (lua_State * L);
 int lqueso_instruction_g_predecessors           (lua_State * L);
 int lqueso_instruction_json                     (lua_State * L);
@@ -56,6 +57,8 @@ int lqueso_instruction_replace_with_assign      (lua_State * L);
 int lqueso_instruction_replace_with_instruction (lua_State * L);
 int lqueso_instruction_address                  (lua_State * L);
 int lqueso_instruction_value                    (lua_State * L);
+int lqueso_instruction_dst                      (lua_State * L);
+int lqueso_instruction_condition                (lua_State * L);
 
 Operand * lqueso_operand_check (lua_State * L, int position);
 int lqueso_operand_push    (lua_State * L, const Operand * operand);
