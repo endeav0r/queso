@@ -12,30 +12,58 @@
 #include <sstream>
 
 
+enum ShadowState {
+    TRUE,
+    FALSE,
+    IFF
+};
+
 class OperandShadow : public Variable {
     private :
-        bool Not;
+        ShadowState shadowState;
+        Variable * iffVariable;
     public :
-        OperandShadow (const std::string & name, bool Not)
-            : Variable (1, name), Not (Not) {}
+        OperandShadow (const std::string & name, ShadowState shadowState)
+            : Variable (1, name), shadowState (shadowState), iffVariable (NULL) {}
+
+        OperandShadow (const std::string & name, ShadowState shadowState, const Variable * iffVariable)
+            : Variable (1, name), shadowState (shadowState), iffVariable (iffVariable->copy()) {}
+
+        ~OperandShadow () {
+            if (iffVariable != NULL)
+                delete iffVariable;
+        }
 
         OperandShadow * copy () const {
-            return new OperandShadow(g_name(), Not);
+            if (iffVariable == NULL)
+                return new OperandShadow(g_name(), shadowState);
+            else
+                return new OperandShadow(g_name(), shadowState, iffVariable);
         }
 
         std::string smtlib2 () const {
-            std::stringstream ss;
-            if (Not == false) {
-                ss << "(not " << Variable::smtlib2() << ")";
-                return ss.str();
-            }
-            else
-                return Variable::smtlib2();
+            return Variable::smtlib2();
         }
 
+        std::string shadowSmtlib2 () const {
+            if (shadowState == TRUE)
+                return Variable::smtlib2();
+            else if (shadowState == FALSE)
+                return std::string("(bvnot ") + Variable::smtlib2() + ")";
+            else if (shadowState == IFF) {
+                std::stringstream ss;
+                ss << "(ite (= " << Variable::smtlib2() << " #b1) " << iffVariable->smtlib2() << " #b0)";
+                return ss.str();
+            }
+        }
+
+        ShadowState g_shadowState () const { return shadowState; }
+
         std::string queso () const {
-            if (Not == false)
+            if (shadowState == FALSE)
                 return std::string("~(") + Variable::queso() + ")";
+            else if (shadowState == IFF)
+                return std::string("IFF(") + Variable::queso() + ")";
             else
                 return Variable::queso();
         }
@@ -99,6 +127,9 @@ class InstructionShadow : public Instruction {
         }
 
         const std::string smtlib2 () const {
+            if (exclusiveConjunctions.size() < 1)
+                return "";
+
             std::stringstream ss;
 
             ss << "(assert (= " << dst->smtlib2() << " ";
@@ -107,22 +138,22 @@ class InstructionShadow : public Instruction {
             std::set <std::set <OperandShadow *>> :: iterator it;
             for (it = exclusiveConjunctions.begin(); it != exclusiveConjunctions.end(); it++) {
                 if ((*it).size() == 1) {
-                    conjunctions.push_back((*(*it).begin())->smtlib2());
+                    conjunctions.push_back((*(*it).begin())->shadowSmtlib2());
                     continue;
                 }
 
                 std::list <std::string> conjunctionStrings;
-                std::transform((*it).begin(),
-                               (*it).end(),
-                               conjunctionStrings.begin(),
-                               [](OperandShadow * opS) { return opS->smtlib2(); });
+                for (auto iit = (*it).begin(); iit != (*it).end(); iit++) {
+                    conjunctionStrings.push_back((*iit)->shadowSmtlib2());
+                }
 
                 conjunctions.push_back(std::accumulate(conjunctionStrings.begin(),
                                                        conjunctionStrings.end(),
                                                        std::string(""),
-                    [] (std::string a, std::string b) { 
+                    [] (std::string a, std::string b) {
+                        if (a == "") return b;
                         std::stringstream ss;
-                        ss << "(and " << a << " " << b << ")";
+                        ss << "(bvand " << a << " " << b << ")";
                         return ss.str();
                     }));
             }
@@ -132,8 +163,9 @@ class InstructionShadow : public Instruction {
             else {
                 ss << std::accumulate(conjunctions.begin(), conjunctions.end(), std::string(""),
                     [] (std::string a, std::string b) {
+                        if (a == "") return b;
                         std::stringstream ss;
-                        ss << "(xor " << a << " " << b << ")";
+                        ss << "(bvxor " << a << " " << b << ")";
                         return ss.str();
                     });
             }
@@ -168,7 +200,7 @@ class InstructionShadow : public Instruction {
                                       std::string(""),
                 [] (std::string lhs, std::string rhs) {
                     if (lhs == "") return rhs;
-                    return lhs + " ^ " + rhs;
+                    return lhs + " \\n^ " + rhs;
                 });
             return result.str();
         }
@@ -201,8 +233,6 @@ class LiveVertex : public GraphVertex {
 
 class SpicyQueso {
     public :
-        static void ssa (std::list <Instruction *> & instructions);
-        static void ssa (QuesoGraph * quesoGraph);
 
         // apply ssa over a single instruction
         static void ssa_instruction (Instruction * instruction);
@@ -258,7 +288,8 @@ class SpicyQueso {
         static std::map <uint64_t, uint64_t> idominator_map (QuesoGraph * quesoGraph,
                                   std::map <uint64_t, std::set <uint64_t>> & dom_map);
 
-        static QuesoGraph * shadowGraph (QuesoGraph * quesoGraph);
+        static QuesoGraph * shadowGraph  (QuesoGraph * quesoGraph);
+        static QuesoGraph * shadowGraph2 (QuesoGraph * quesoGraph);
 };
 
 #endif

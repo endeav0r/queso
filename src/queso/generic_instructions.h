@@ -16,31 +16,64 @@ class InstructionBlock : public Instruction {
 };
 
 
+class PhiOperand {
+    private :
+        uint64_t vIndex;
+        Operand * operand;
+
+    public :
+        PhiOperand (uint64_t vIndex, const Operand * operand)
+            : vIndex (vIndex), operand (operand->copy()) {}
+
+        ~PhiOperand () {
+            delete operand;
+        }
+
+        uint64_t  g_vIndex  () { return vIndex; }
+        Operand * g_operand () { return operand; }
+
+        PhiOperand * copy () const {
+            PhiOperand * newOperand = new PhiOperand(vIndex, operand->copy());
+            return newOperand;
+        }
+
+        json_t * json () const;
+};
+
+
 class InstructionPhi : public Instruction {
     private :
         Operand * dst;
-        std::list <Operand *> src;
+        std::list <PhiOperand *> src;
 
     public :
         InstructionPhi (const Operand * dst);
         virtual ~InstructionPhi ();
 
-        void add_src (const Operand * operand);
+        void add_src (const PhiOperand * operand) {
+            this->src.push_back(operand->copy());
+        }
 
-        void set_src (const std::list <Operand *> operands) {
+        void set_src (const std::list <PhiOperand *> operands) {
             clear_src();
-            std::list <Operand *> :: const_iterator it;
-            for (it = operands.begin(); it != operands.end(); it++) {
-                add_src(*it);
-            }
+
+            std::list <PhiOperand *> :: const_iterator it;
+            for (it = operands.begin(); it != operands.end(); it++)
+                this->src.push_back((*it)->copy());
         }
 
         void clear_src () {
-            std::list <Operand *> :: iterator it;
+            std::list <PhiOperand *> :: iterator it;
             for (it = src.begin(); it != src.end(); it++)
                 delete *it;
             src.clear();
         }
+
+        std::list <PhiOperand *> phiOperands () {
+            return src;
+        }
+
+        Operand * g_dst () { return dst; }
 
         Operand * operand_written () { return dst; }
         std::list <Operand *> operands_read ();

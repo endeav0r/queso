@@ -73,6 +73,37 @@ std::string QuesoGraph :: dotGraph () {
     return ss.str();
 }
 
+std::string QuesoGraph :: dotGraphVIndex () {
+    std::stringstream ss;
+    
+    std::map <uint64_t, GraphVertex *> :: iterator it;
+
+    ss << "digraph G {" << std::endl;
+
+    for (it = vertices.begin(); it != vertices.end(); it++) {
+        Instruction * instruction = dynamic_cast<Instruction *>(it->second);
+        // draw this vertex
+        ss << instructionDotName(instruction) << " [label=\"";
+        ss << instruction->g_vIndex();
+        ss << "\", shape=box];" << std::endl;
+
+        std::list <GraphEdge *> :: const_iterator it;
+        const std::list <GraphEdge *> successors = instruction->g_successors();
+        for (it = successors.begin(); it != successors.end(); it++) {
+            QuesoEdge * quesoEdge = dynamic_cast<QuesoEdge *>(*it);
+            const Instruction * head = quesoEdge->g_head();
+            const Instruction * tail = quesoEdge->g_tail();
+
+
+            ss << instructionDotName(head) << " -> " << instructionDotName(tail)
+               << ";" << std::endl;
+        }
+    }
+
+    ss << "}";
+    return ss.str();
+}
+
 
 Instruction * QuesoGraph :: g_vertex (uint64_t vIndex) {
     return (Instruction *) Graph::g_vertex(vIndex);

@@ -221,7 +221,7 @@ int luint64_number (lua_State * L)
     uint64_t value = luint64_check(L, 1);
     lua_pop(L, 1);
 
-    lua_pushnumber(L, (lua_Number) value);
+    lua_pushinteger(L, value);
 
     return 1;
 }

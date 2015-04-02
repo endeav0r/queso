@@ -3,8 +3,7 @@
 #include "disassembler/x86Disassembler.h"
 #include "translators/x86queso.h"
 #include "queso/spicyQueso.h"
-
-#include "luint64.h"
+#include "queso/generic_instructions.h"
 
 #include <iostream>
 #include <jansson.h>
@@ -59,6 +58,7 @@ static const struct luaL_Reg lqueso_instruction_m [] = {
     {"value",                    lqueso_instruction_value},
     {"dst",                      lqueso_instruction_dst},
     {"condition",                lqueso_instruction_condition},
+    {"phiOperands",              lqueso_instruction_phiOperands},
     {NULL, NULL}
 };
 
@@ -96,6 +96,7 @@ static const struct luaL_Reg lqueso_machine_m [] = {
 static const struct luaL_Reg lqueso_quesoGraph_m [] = {
     {"__gc",                    lqueso_quesoGraph_gc},
     {"dotGraph",                lqueso_quesoGraph_dotGraph},
+    {"dotGraphVIndex",          lqueso_quesoGraph_dotGraphVIndex},
     {"g_vertices",              lqueso_quesoGraph_g_vertices},
     {"ssa",                     lqueso_quesoGraph_ssa},
     {"smtlib2Declarations",     lqueso_quesoGraph_smtlib2Declarations},
@@ -108,6 +109,7 @@ static const struct luaL_Reg lqueso_quesoGraph_m [] = {
     {"constant_fold_propagate", lqueso_quesoGraph_constant_fold_propagate},
     {"replace_operand",         lqueso_quesoGraph_replace_operand},
     {"shadowGraph",             lqueso_quesoGraph_shadowGraph},
+    {"shadowGraph2",            lqueso_quesoGraph_shadowGraph2},
     {"absorbInstruction",       lqueso_quesoGraph_absorbInstruction},
     {"addEdge",                 lqueso_quesoGraph_addEdge},
     {NULL, NULL}
@@ -174,8 +176,6 @@ LUALIB_API int luaopen_lqueso (lua_State * L) {
     lua_pushvalue(L, -2);
     lua_settable(L, -3);
 
-    luaL_requiref(L, "luint64", luaopen_luint64, 1);
-
     luaL_newlib(L, lqueso_lib_f);
 
     return 1;
@@ -191,7 +191,7 @@ int lqueso_x86translate (lua_State * L) {
     QuesoX86 quesoX86;
     Instruction * instruction = NULL;
     if (lua_isuserdata(L, 2)) {
-        uint64_t pc = luint64_check(L, 2);
+        uint64_t pc = luaL_checkinteger(L, 2);
         instruction = quesoX86.translate((const uint8_t *) bytes, size, pc);
     }
     else
@@ -207,7 +207,7 @@ int lqueso_x86translate (lua_State * L) {
 
 
 int lqueso_x86disassemble (lua_State * L) {
-    uint64_t entry = luint64_check(L, 1);
+    uint64_t entry = luaL_checkinteger(L, 1);
     MemoryModel * memoryModel = lqueso_memoryModel_check(L, 2);
 
     lua_pop(L, 2);
@@ -221,7 +221,7 @@ int lqueso_x86disassemble (lua_State * L) {
 
 
 int lqueso_x86acyclicDepth (lua_State * L) {
-    uint64_t entry = luint64_check(L, 1);
+    uint64_t entry = luaL_checkinteger(L, 1);
     MemoryModel * memoryModel = lqueso_memoryModel_check(L, 2);
     unsigned int depth = luaL_checknumber(L, 3);
 
@@ -236,7 +236,7 @@ int lqueso_x86acyclicDepth (lua_State * L) {
 
 
 int lqueso_x86treeDepth (lua_State * L) {
-    uint64_t entry = luint64_check(L, 1);
+    uint64_t entry = luaL_checkinteger(L, 1);
     MemoryModel * memoryModel = lqueso_memoryModel_check(L, 2);
     unsigned int depth = luaL_checknumber(L, 3);
 
@@ -285,7 +285,7 @@ int lqueso_array (lua_State * L) {
 
 int lqueso_constant (lua_State * L) {
     unsigned int bits = luaL_checkinteger(L, 1);
-    uint64_t value = luint64_check(L, 2);
+    uint64_t value = luaL_checkinteger(L, 2);
 
     lua_pop(L, 2);
 
@@ -436,9 +436,13 @@ int lqueso_instruction_depth_instructions (lua_State * L) {
 
 int lqueso_instruction_opcode (lua_State * L) {
     Instruction * instruction = lqueso_instruction_check(L, -1);
-    lua_pop(L, 1);
 
-    lua_pushstring(L, QuesoOpcodeStrings[instruction->g_opcode()]);
+    if (dynamic_cast<InstructionPhi *>(instruction) != NULL)
+        lua_pushstring(L, "phi");
+    else if (dynamic_cast<InstructionBlock *>(instruction) != NULL)
+        lua_pushstring(L, "block");
+    else
+        lua_pushstring(L, QuesoOpcodeStrings[instruction->g_opcode()]);
     return 1;
 }
 
@@ -447,7 +451,7 @@ int lqueso_instruction_g_pc (lua_State * L) {
     Instruction * instruction = lqueso_instruction_check(L, -1);
 
     if (instruction->g_pc_set())
-        luint64_push(L, instruction->g_pc());
+        lua_pushinteger(L, instruction->g_pc());
     else
         lua_pushnil(L);
 
@@ -459,7 +463,7 @@ int lqueso_instruction_g_vIndex (lua_State * L) {
     Instruction * instruction = lqueso_instruction_check(L, -1);
     lua_pop(L, 1);
 
-    luint64_push(L, instruction->g_vIndex());
+    lua_pushinteger(L, instruction->g_vIndex());
 
     return 1;
 }
@@ -550,7 +554,7 @@ int lqueso_instruction_g_successors (lua_State * L) {
         QuesoEdge * quesoEdge = (QuesoEdge *) dynamic_cast<QuesoEdge *>(*it);
 
         lua_pushinteger(L, i++);
-        luint64_push(L, quesoEdge->g_tail()->g_vIndex());
+        lua_pushinteger(L, quesoEdge->g_tail()->g_vIndex());
         lua_settable(L, -3);
     }
 
@@ -571,7 +575,7 @@ int lqueso_instruction_g_predecessors (lua_State * L) {
         QuesoEdge * quesoEdge = (QuesoEdge *) dynamic_cast<QuesoEdge *>(*it);
 
         lua_pushinteger(L, i++);
-        luint64_push(L, quesoEdge->g_head()->g_vIndex());
+        lua_pushinteger(L, quesoEdge->g_head()->g_vIndex());
         lua_settable(L, -3);
     }
 
@@ -691,8 +695,10 @@ int lqueso_instruction_dst (lua_State * L) {
 
     if (InstructionIte * ite = dynamic_cast<InstructionIte *>(instruction))
         lqueso_operand_push(L, ite->g_dst());
+    else if (InstructionPhi * phi = dynamic_cast<InstructionPhi *>(instruction))
+        lqueso_operand_push(L, phi->g_dst());
     else
-        luaL_error(L, "instruction:dst must be called over a ite");
+        luaL_error(L, "instruction:dst must be called over a ite or phi");
 
     return 1;
 }
@@ -707,6 +713,41 @@ int lqueso_instruction_condition (lua_State * L) {
         luaL_error(L, "instruction:condition must be called over a ite");
 
     return 1;
+}
+
+
+int lqueso_instruction_phiOperands (lua_State * L) {
+    Instruction * instruction = lqueso_instruction_check(L, 1);
+
+    if (InstructionPhi * phi = dynamic_cast<InstructionPhi *>(instruction)) {
+        lua_newtable(L);
+
+        unsigned int i = 1;
+        std::list <PhiOperand *> operands = phi->phiOperands();
+        std::list <PhiOperand *> :: iterator it;
+        for (it = operands.begin(); it != operands.end(); it++) {
+            PhiOperand * phiOperand = *it;
+
+            lua_pushinteger(L, i++);
+            lua_newtable(L);
+
+            lua_pushstring(L, "vIndex");
+            lua_pushinteger(L, phiOperand->g_vIndex());
+            lua_settable(L, -3);
+
+            lua_pushstring(L, "operand");
+            lqueso_operand_push(L, phiOperand->g_operand());
+            lua_settable(L, -3);
+
+            lua_settable(L, -3);
+        }
+
+        return 1;
+    }
+    else
+        luaL_error(L, "instruction:phiOperands must be called over a phi instruction");
+
+    return 0;
 }
 
 
@@ -754,7 +795,6 @@ int lqueso_operand_gc (lua_State * L) {
 
 int lqueso_operand_type (lua_State * L) {
     Operand * operand = lqueso_operand_check(L, -1);
-    lua_pop(L, 1);
 
     switch (operand->g_type()) {
     case VARIABLE : lua_pushstring(L, "VARIABLE"); break;
@@ -771,7 +811,6 @@ int lqueso_operand_type (lua_State * L) {
 
 int lqueso_operand_name (lua_State * L) {
     Operand * operand = lqueso_operand_check(L, -1);
-    lua_pop(L, 1);
 
     if (Variable * variable = dynamic_cast<Variable *>(operand))
         lua_pushstring(L, variable->g_name().c_str());
@@ -786,9 +825,8 @@ int lqueso_operand_name (lua_State * L) {
 
 int lqueso_operand_ssa (lua_State * L) {
     Operand * operand = lqueso_operand_check(L, -1);
-    lua_pop(L, 1);
 
-    luint64_push(L, operand->g_ssa());
+    lua_pushinteger(L, operand->g_ssa());
 
     return 1;
 }
@@ -796,7 +834,6 @@ int lqueso_operand_ssa (lua_State * L) {
 
 int lqueso_operand_smtlib2 (lua_State * L) {
     Operand * operand = lqueso_operand_check(L, -1);
-    lua_pop(L, 1);
 
     lua_pushstring(L, operand->smtlib2().c_str());
 
@@ -806,7 +843,6 @@ int lqueso_operand_smtlib2 (lua_State * L) {
 
 int lqueso_operand_queso (lua_State * L) {
     Operand * operand = lqueso_operand_check(L, -1);
-    lua_pop(L, 1);
 
     lua_pushstring(L, operand->queso().c_str());
 
@@ -822,7 +858,7 @@ int lqueso_operand_value (lua_State * L) {
 
     // oh wow that was slightly dangerous
     Constant * constant = dynamic_cast<Constant *>(operand);
-    luint64_push(L, constant->g_value());
+    lua_pushinteger(L, constant->g_value());
 
     return 1;
 }
@@ -893,7 +929,7 @@ int lqueso_machineVariable_value (lua_State * L) {
     MachineVariable * machineVariable = lqueso_machineVariable_check(L, -1);
     lua_pop(L, 1);
 
-    luint64_push(L, machineVariable->g_value());
+    lua_pushinteger(L, machineVariable->g_value());
 
     return 1;
 }
@@ -946,7 +982,7 @@ int lqueso_machine_gc (lua_State * L) {
 
 int lqueso_machine_s_memory (lua_State * L) {
     Machine * machine = lqueso_machine_check(L, 1);
-    uint64_t address = luint64_check(L, 2);
+    uint64_t address = luaL_checkinteger(L, 2);
     size_t size;
     const char * buf = luaL_checklstring(L, 3, &size);
 
@@ -960,7 +996,7 @@ int lqueso_machine_s_memory (lua_State * L) {
 
 int lqueso_machine_g_memory (lua_State * L) {
     Machine * machine = lqueso_machine_check(L, 1);
-    uint64_t address = (uint64_t) luint64_check(L, 2);
+    uint64_t address = (uint64_t) luaL_checkinteger(L, 2);
     size_t size = (size_t) luaL_checknumber(L, 3);
 
     MachineBuffer machineBuffer = machine->g_memory(address, size);
@@ -978,7 +1014,7 @@ int lqueso_machine_g_memory (lua_State * L) {
 int lqueso_machine_s_variable (lua_State * L) {
     Machine * machine = lqueso_machine_check(L, 1);
     const char * name = luaL_checkstring(L, 2);
-    uint64_t value = (uint64_t) luint64_check(L, 3);
+    uint64_t value = (uint64_t) luaL_checkinteger(L, 3);
     uint8_t  bits  = (uint8_t)  luaL_checknumber(L, 4);
 
     uint64_t mask = (((uint64_t) 1) << bits) - 1;
@@ -1059,7 +1095,6 @@ int lqueso_quesoGraph_gc (lua_State * L) {
     #endif
 
     QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, -1);
-    lua_pop(L, 1);
 
     delete quesoGraph;
 
@@ -1073,9 +1108,18 @@ int lqueso_quesoGraph_gc (lua_State * L) {
 
 int lqueso_quesoGraph_dotGraph (lua_State * L) {
     QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, -1);
-    lua_pop(L, 1);
 
     std::string dotGraph = quesoGraph->dotGraph();
+    lua_pushstring(L, dotGraph.c_str());
+
+    return 1;
+}
+
+
+int lqueso_quesoGraph_dotGraphVIndex (lua_State * L) {
+    QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, -1);
+
+    std::string dotGraph = quesoGraph->dotGraphVIndex();
     lua_pushstring(L, dotGraph.c_str());
 
     return 1;
@@ -1124,8 +1168,6 @@ int lqueso_quesoGraph_smtlib2Declarations (lua_State * L) {
     QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, 1);
 
     std::string smtlib2Declarations = quesoGraph->smtlib2Declarations();
-
-    lua_pop(L, 1);
 
     lua_pushstring(L, smtlib2Declarations.c_str());
 
@@ -1253,6 +1295,15 @@ int lqueso_quesoGraph_shadowGraph (lua_State * L) {
 }
 
 
+int lqueso_quesoGraph_shadowGraph2 (lua_State * L) {
+    QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, 1);
+
+    lqueso_quesoGraph_absorb(L, SpicyQueso::shadowGraph2(quesoGraph));
+
+    return 1;
+}
+
+
 int lqueso_quesoGraph_absorbInstruction (lua_State * L) {
     QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, 1);
     Instruction * instruction = lqueso_instruction_check(L, 2);
@@ -1276,8 +1327,8 @@ int lqueso_quesoGraph_absorbInstruction (lua_State * L) {
 
 int lqueso_quesoGraph_addEdge (lua_State * L) {
     QuesoGraph * quesoGraph = lqueso_quesoGraph_check(L, 1);
-    uint64_t head = luint64_check(L, 2);
-    uint64_t tail = luint64_check(L, 3);
+    uint64_t head = luaL_checkinteger(L, 2);
+    uint64_t tail = luaL_checkinteger(L, 3);
 
     quesoGraph->absorbEdge(new QuesoEdge(quesoGraph, head, tail, CFT_NORMAL));
 
@@ -1329,7 +1380,7 @@ int lqueso_memoryModel_gc (lua_State * L) {
 
 int lqueso_memoryModel_s_byte (lua_State * L) {
     MemoryModel * memoryModel = lqueso_memoryModel_check(L, 1);
-    uint64_t address = luint64_check(L, 2);
+    uint64_t address = luaL_checkinteger(L, 2);
     int byte = luaL_checknumber(L, 3);
 
     lua_pop(L, 3);
@@ -1342,7 +1393,7 @@ int lqueso_memoryModel_s_byte (lua_State * L) {
 
 int lqueso_memoryModel_g_byte (lua_State * L) {
     MemoryModel * memoryModel = lqueso_memoryModel_check(L, 1);
-    uint64_t address = luint64_check(L, 2);
+    uint64_t address = luaL_checkinteger(L, 2);
 
     lua_pop(L, 2);
 
@@ -1405,7 +1456,7 @@ int lqueso_elf32_entry (lua_State * L) {
     Elf32 * elf32 = lqueso_elf32_check(L, -1);
     lua_pop(L, 1);
 
-    luint64_push(L, elf32->entry());
+    lua_pushinteger(L, elf32->entry());
 
     return 1;
 }
@@ -1437,7 +1488,7 @@ int lqueso_elf32_parse_sym_list (lua_State * L, std::list <LoaderSymbol> symbols
         lua_settable(L, -3);
 
         lua_pushstring(L, "address");
-        luint64_push(L, loaderSymbol.g_address());
+        lua_pushinteger(L, loaderSymbol.g_address());
         lua_settable(L, -3);
 
         switch (loaderSymbol.g_type()) {
@@ -1492,11 +1543,11 @@ int lqueso_elf32_sections (lua_State * L) {
         lua_newtable(L);
 
         lua_pushstring(L, "address");
-        luint64_push(L, section.g_address());
+        lua_pushinteger(L, section.g_address());
         lua_settable(L, -3);
 
         lua_pushstring(L, "size");
-        luint64_push(L, section.g_size());
+        lua_pushinteger(L, section.g_size());
         lua_settable(L, -3);
 
         lua_settable(L, -3);

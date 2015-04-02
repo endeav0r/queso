@@ -23,6 +23,23 @@ json_t * InstructionBlock :: json () const {
 }
 
 
+/****************************************
+* PhiOperand                            *
+****************************************/
+
+json_t * PhiOperand :: json () const {
+    json_t * json = json_object();
+
+    json_object_set(json, "vIndex", json_integer(vIndex));
+    json_object_set(json, "operand", operand->json());
+
+    return json;
+}
+
+
+/****************************************
+* InstructionPhi                        *
+****************************************/
 
 InstructionPhi :: InstructionPhi (const Operand * dst) {
     this->dst = dst->copy();
@@ -32,30 +49,26 @@ InstructionPhi :: InstructionPhi (const Operand * dst) {
 InstructionPhi :: ~InstructionPhi () {
     delete dst;
 
-    std::list <Operand *> :: iterator it;
+    std::list <PhiOperand *> :: iterator it;
     for (it = src.begin(); it != src.end(); it++)
         delete *it;
 }
 
 
-void InstructionPhi :: add_src (const Operand * operand) {
-    this->src.push_back(operand->copy());
-}
-
-
 std::list <Operand *> InstructionPhi :: operands_read () {
-    return src;
+    std::list <Operand *> result;
+    std::list <PhiOperand *> :: iterator it;
+
+    for (it = src.begin(); it != src.end(); it++) {
+        result.push_back((*it)->g_operand());
+    }
+
+    return result;
 }
 
 
 std::list <Operand *> InstructionPhi :: operands () {
-
-    std::list <Operand *> result;
-    std::list <Operand *> :: iterator it;
-
-    for (it = src.begin(); it != src.end(); it++) {
-        result.push_back(*it);
-    }
+    std::list <Operand *> result = operands_read();
 
     result.push_back(dst);
 
@@ -68,9 +81,9 @@ const std::string InstructionPhi :: queso () const {
 
     ss << "Phi " << dst->queso() << " <- ( ";
 
-    std::list <Operand *> :: const_iterator it;
+    std::list <PhiOperand *> :: const_iterator it;
     for (it = src.begin(); it != src.end(); it++) {
-        ss << (*it)->queso() << " ";
+        ss << (*it)->g_operand()->queso() << " ";
     }
 
     ss << ")";
@@ -82,7 +95,7 @@ const std::string InstructionPhi :: queso () const {
 InstructionPhi * InstructionPhi :: copy () const {
     InstructionPhi * newPhi = new InstructionPhi(dst);
 
-    std::list <Operand *> :: const_iterator it;
+    std::list <PhiOperand *> :: const_iterator it;
     for (it = src.begin(); it != src.end(); it++) {
         newPhi->add_src(*it);
     }
@@ -91,24 +104,24 @@ InstructionPhi * InstructionPhi :: copy () const {
 }
 
 
-std::string phi_smtlib2 (Operand * dst, std::vector <Operand *> operands) {
+std::string phi_smtlib2 (Operand * dst, std::vector <PhiOperand *> operands) {
     std::stringstream ss;
     if (operands.size() == 2) {
         ss << "(or " 
-           << "(= " << dst->smtlib2() << " " << operands[0]->smtlib2() << ") "
-           << "(= " << dst->smtlib2() << " " << operands[1]->smtlib2() << "))";
+           << "(= " << dst->smtlib2() << " " << operands[0]->g_operand()->smtlib2() << ") "
+           << "(= " << dst->smtlib2() << " " << operands[1]->g_operand()->smtlib2() << "))";
         return ss.str();
     }
     else if (operands.size() == 3) {
         ss << "(or (or "
-           << "(= " << dst->smtlib2() << " " << operands[0]->smtlib2() << ") "
-           << "(= " << dst->smtlib2() << " " << operands[1]->smtlib2() << ")) "
-           << "(= " << dst->smtlib2() << " " << operands[2]->smtlib2() << ")) ";
+           << "(= " << dst->smtlib2() << " " << operands[0]->g_operand()->smtlib2() << ") "
+           << "(= " << dst->smtlib2() << " " << operands[1]->g_operand()->smtlib2() << ")) "
+           << "(= " << dst->smtlib2() << " " << operands[2]->g_operand()->smtlib2() << ")) ";
         return ss.str();
     }
     else {
-        std::vector <Operand *> first;
-        std::vector <Operand *> second;
+        std::vector <PhiOperand *> first;
+        std::vector <PhiOperand *> second;
         for (size_t i = 0; i < operands.size(); i++) {
             if (i < operands.size() / 2)
                 first.push_back(operands[i]);
@@ -129,11 +142,11 @@ const std::string InstructionPhi :: smtlib2 () const {
         return "";
 
     else if (src.size() == 1) {
-        ss << "(assert (= " << dst->smtlib2() << " " << src.front()->smtlib2() << "))";
+        ss << "(assert (= " << dst->smtlib2() << " " << src.front()->g_operand()->smtlib2() << "))";
         return ss.str();
     }
     else {
-        ss << "(assert " << phi_smtlib2(dst, std::vector <Operand *> (src.begin(), src.end())) << ")";
+        ss << "(assert " << phi_smtlib2(dst, std::vector <PhiOperand *> (src.begin(), src.end())) << ")";
         return ss.str();
     }
 }
@@ -148,10 +161,11 @@ json_t * InstructionPhi :: json () const {
 
     json_t * operands = json_array();
 
-    std::list <Operand *> :: const_iterator it;
+    std::list <PhiOperand *> :: const_iterator it;
     for (it = src.begin(); it != src.end(); it++) {
-        Operand * operand = *it;
-        json_array_append(operands, operand->json());
+        PhiOperand * phiOperand = *it;
+
+        json_array_append(operands, phiOperand->json());
     }
 
     json_object_set(json, "src", operands);

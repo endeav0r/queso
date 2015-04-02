@@ -13,162 +13,8 @@
 #include <string>
 #include <vector>
 
-#define DEAD_CODE_ELIMINATION_BAIL 0x100
+#define DEAD_CODE_ELIMINATION_BAIL 0x10
 
-
-void SpicyQueso_ssa_assign_read (std::map <std::string, uint64_t> & variableCounts,
-                                 Instruction * instruction) {
-    std::list <Operand *> :: iterator it;
-    std::list <Operand *> operands_read = instruction->operands_read();
-    for (it = operands_read.begin(); it != operands_read.end(); it++) {
-        if (Variable * variable = dynamic_cast<Variable *>(*it)) {
-            if (variableCounts.count(variable->g_name()) == 0)
-                variableCounts[variable->g_name()] = 0;
-            variable->s_ssa(variableCounts[variable->g_name()]);
-        }
-        else if (Array * array = dynamic_cast<Array *>(*it)) {
-            if (variableCounts.count(array->g_name()) == 0)
-                variableCounts[array->g_name()] = 0;
-            array->s_ssa(variableCounts[array->g_name()]);
-        }
-    }
-}
-
-
-void SpicyQueso_ssa_assign_written (std::map <std::string, uint64_t> & variableCounts,
-                                    Instruction * instruction) {
-    Operand * dst = instruction->operand_written();
-
-    if (Variable * variable = dynamic_cast<Variable *>(dst)) {
-        if (variableCounts.count(variable->g_name()) == 0)
-            variableCounts[variable->g_name()] = 0;
-        else
-            variableCounts[variable->g_name()] += 1;
-        variable->s_ssa(variableCounts[variable->g_name()]);
-    }
-    else if (Array * array = dynamic_cast<Array *>(dst)) {
-        if (variableCounts.count(array->g_name()) == 0)
-            variableCounts[array->g_name()] = 0;
-        else
-            variableCounts[array->g_name()] += 1;
-        array->s_ssa(variableCounts[array->g_name()]);
-    }
-
-}
-
-
-void SpicyQueso_ssa (std::map <std::string, uint64_t> & variableCounts,
-                     Instruction * instruction) {
-
-    SpicyQueso_ssa_assign_read(variableCounts, instruction);
-    SpicyQueso_ssa_assign_written(variableCounts, instruction);
-
-    std::list <Instruction *> ::iterator iit;
-    for (iit = instruction->g_depth_instructions().begin();
-         iit != instruction->g_depth_instructions().end();
-         iit++) {
-        SpicyQueso_ssa(variableCounts, *iit);
-    }
-}
-
-
-void SpicyQueso :: ssa (std::list <Instruction *> & instructions) {
-    std::map <std::string, uint64_t> variableCounts;
-
-    std::list <Instruction *> :: iterator it;
-    for (it = instructions.begin(); it != instructions.end(); it++)
-        SpicyQueso_ssa(variableCounts, *it);
-}
-
-
-// searches predecessor instructions for instances of given operand
-std::list <Operand *> spicyQueso_ssa_find_operand (QuesoGraph * quesoGraph,
-                                                   uint64_t vId,
-                                                   Operand * operand,
-                                                   Instruction * startIns,
-                                                   std::map <uint64_t, std::set<std::string>> & vertex_operands_written,
-                                                   std::map <uint64_t, std::list <Instruction *>> & vertex_predecessors) {
-    std::set <uint64_t> touched;
-    std::list <Operand *> operands;
-    std::queue <Instruction *> queue;
-
-    touched.insert(vId);
-
-    if (vertex_operands_written[vId].count(operand->g_name()) > 0) {
-        // the current ins is a special case
-        std::list <Instruction *> & flattened = quesoGraph->g_vertex(vId)->flatten();
-        std::list <Instruction *> :: reverse_iterator it;
-        bool start = false;
-        bool operand_found = false;
-        for (it = flattened.rbegin(); it != flattened.rend(); it++) {
-            if (*it == startIns) {
-                start = true;
-                continue;
-            }
-            else if (not start)
-                continue;
-
-            Instruction * instruction = *it;
-            if (    (instruction->operand_written() != NULL)
-                 && (instruction->operand_written()->g_name() == operand->g_name())) {
-                operands.push_back(instruction->operand_written());
-                operand_found = true;
-                break;
-            }
-        }
-
-        if (operand_found)
-            return operands;
-    }
-
-    std::list <Instruction *> :: iterator pit;
-    for (pit = vertex_predecessors[vId].begin(); pit != vertex_predecessors[vId].end(); pit++) {
-        queue.push(*pit);
-    }
-
-    std::list <Instruction *> :: reverse_iterator it;
-    while (queue.size() > 0) {
-        while ((queue.size() > 0) && (touched.count(queue.front()->g_vIndex()) > 0)) {
-            queue.pop();
-        }
-
-        if (queue.size() == 0)
-            break;
-
-        Instruction * instruction = queue.front();
-
-        uint64_t vIndex = instruction->g_vIndex();
-
-        touched.insert(vIndex);
-        queue.pop();
-
-        if (vertex_operands_written[vIndex].count(operand->g_name()) > 0) {
-            bool operand_found = false;
-            std::list <Instruction *> & flattened = instruction->flatten();
-            for (it = flattened.rbegin(); it != flattened.rend(); it++) {
-                Instruction * instruction = *it;
-                if (    (instruction->operand_written() != NULL)
-                     && (instruction->operand_written()->g_name() == operand->g_name())) {
-                    operands.push_back(instruction->operand_written());
-                    operand_found = true;
-                    break;
-                }
-            }
-
-            if (operand_found)
-                continue;
-        }
-
-        //std::list <Instruction *> :: iterator pit;
-        for (pit = vertex_predecessors[vIndex].begin();
-             pit != vertex_predecessors[vIndex].end();
-             pit++) {
-            queue.push(*pit);
-        }
-    }
-    
-    return operands;
-}
 
 
 void spicyQueso_ssa_zero (QuesoGraph * quesoGraph) {
@@ -183,206 +29,6 @@ void spicyQueso_ssa_zero (QuesoGraph * quesoGraph) {
             std::list <Operand *> :: iterator oit;
             for (oit = operands.begin(); oit != operands.end(); oit++) {
                 (*oit)->s_ssa(0);
-            }
-        }
-    }
-}
-
-
-uint64_t spicyQueso_new_ssa (std::map <std::string, uint64_t> & ssa, std::string name) {
-    if (ssa.count(name) == 0)
-        ssa[name] = 0;
-    ssa[name]++;
-    return ssa[name];
-}
-
-
-void SpicyQueso :: ssa (QuesoGraph * quesoGraph) {
-    std::stack <uint64_t> queue_multiple_predecessors;
-    std::stack <uint64_t> queue;
-    std::set   <uint64_t> queue_set;
-
-    // this speeds up looking for operands in predecessor instructions a great
-    // deal
-    std::map <uint64_t, std::set<std::string>> vertex_operands_written;
-    std::map <uint64_t, std::list <Instruction *>> vertex_predecessors;
-
-    std::map <uint64_t, GraphVertex *> :: iterator it;
-    for (it = quesoGraph->g_vertices().begin(); it != quesoGraph->g_vertices().end(); it++) {
-        Instruction * instruction = dynamic_cast<Instruction *>(it->second);
-        std::list <Instruction *> & flattened = instruction->flatten();
-        std::list <Instruction *> :: iterator iit;
-        for (iit = flattened.begin(); iit != flattened.end(); iit++) {
-            if ((*iit)->operand_written() != NULL)
-                vertex_operands_written[it->first].insert((*iit)->operand_written()->g_name());
-        }
-
-        std::list <GraphEdge *> predecessor_edges = instruction->g_predecessors();
-        std::list <Instruction *> predecessors;
-        std::list <GraphEdge *> :: iterator git;
-        for (git = predecessor_edges.begin(); git != predecessor_edges.end(); git++) {
-            predecessors.push_back((Instruction *) (*git)->g_head());
-        }
-
-        vertex_predecessors[instruction->g_vIndex()] = predecessors;
-    }
-
-
-    std::map <std::string, uint64_t> ssa;
-
-    spicyQueso_ssa_zero(quesoGraph);
-
-    // add every vertex to the queue
-    for (it = quesoGraph->g_vertices().begin(); it != quesoGraph->g_vertices().end(); it++) {
-        if (it->second->g_predecessors().size() <= 1)
-            queue.push(it->first);
-    }
-
-    while (true) {
-        // if we have no more nodes to process
-        if (queue.size() == 0) {
-            if (queue_multiple_predecessors.size() == 0)
-                break;
-            // we set this to queue_multiple_predecessors and clear that queue
-            queue = queue_multiple_predecessors;
-            queue_multiple_predecessors = std::stack <uint64_t> ();
-        }
-
-        uint64_t vId = queue.top();
-        queue.pop();
-        queue_set.erase(vId);
-
-        Instruction * instruction = quesoGraph->g_vertex(vId);
-        if (instruction == NULL) {
-            std::cerr << "null vertex SpicyQueso :: ssa vId=" << vId << std::endl;
-            continue;
-        }
-
-        bool changed = false;
-
-        std::map <std::string, uint64_t> localSsa;
-
-        // flatten out the instruction
-        std::list <Instruction *> flattened = instruction->flatten();
-        std::list <Instruction *> :: iterator it;
-        for (it = flattened.begin(); it != flattened.end(); it++) {
-            Instruction * flatIns = *it;
-
-            // for each operand read
-            std::list <Operand *> operands_read = flatIns->operands_read();
-            std::list <Operand *> :: iterator it;
-            for (it = operands_read.begin(); it != operands_read.end(); it++) {
-
-                // check our local SSA cache for this variable
-                if (    (localSsa.count((*it)->g_name()) > 0)
-                     && (dynamic_cast<InstructionPhi *>(flatIns) == NULL)) {
-                    (*it)->s_ssa(localSsa[(*it)->g_name()]);
-                    continue;
-                }
-
-                // get a list of preceding values of this operand
-                std::list <Operand *> preceding = spicyQueso_ssa_find_operand(quesoGraph,
-                                                                              vId,
-                                                                              *it,
-                                                                              flatIns,
-                                                                              vertex_operands_written,
-                                                                              vertex_predecessors);
-
-                // if no preceding, set ssa to 0
-                if (preceding.size() == 0) {
-                    if ((*it)->g_ssa() != 0)
-                        changed = true;
-                    (*it)->s_ssa(0);
-                    localSsa[(*it)->g_name()] = 0;
-                }
-
-                // if 1 preceding operand, set ssa to that value
-                else if (preceding.size() == 1) {
-                    if ((*it)->g_ssa() != preceding.front()->g_ssa())
-                        changed = true;
-                    (*it)->s_ssa(preceding.front()->g_ssa());
-                    localSsa[(*it)->g_name()] = preceding.front()->g_ssa();
-                }
-
-                // if >1 preceding operands... PHI TIME!
-                else {
-                    // phi is always true for changed, because fuck trying to figure
-                    // that noise out
-                    changed = true;
-
-                    // if this is a phi instruction, we just update src values
-                    if (InstructionPhi * phi = dynamic_cast<InstructionPhi *>(flatIns)) {
-                        phi->set_src(preceding);
-                        // and we're done with this instruction
-                        break;
-                    }
-                    // create a phi instruction
-                    (*it)->s_ssa(spicyQueso_new_ssa(ssa, (*it)->g_name()));
-                    InstructionPhi * phi = new InstructionPhi(*it);
-                    phi->set_src(preceding);
-
-                    // set localSsa
-                    localSsa[(*it)->g_name()] = (*it)->g_ssa();
-
-                    quesoGraph->absorbInstruction(phi);
-
-                    // add it to our vertex_operands_written
-                    vertex_operands_written[phi->g_vIndex()].insert(phi->operand_written()->g_name());
-
-                    // get a list of all predecessors to this vertex
-                    std::list <GraphEdge *> predecessors = instruction->g_predecessors();
-
-                    // point all predecessors to phi, then remove edge from predecessor
-                    // to this instruction
-                    std::list <GraphEdge *> :: iterator ppit;
-                    for (ppit = predecessors.begin(); ppit != predecessors.end(); ppit++) {
-                        quesoGraph->absorbEdge(new QuesoEdge(quesoGraph,
-                                                             (*ppit)->g_head()->g_vIndex(),
-                                                             phi->g_vIndex(),
-                                                             CFT_NORMAL));
-                        vertex_predecessors[phi->g_vIndex()].push_back((Instruction *) (*ppit)->g_head());
-                        delete *ppit;
-                    }
-
-                    // point phi at this instruction
-                    quesoGraph->absorbEdge(new QuesoEdge(quesoGraph,
-                                                         phi->g_vIndex(),
-                                                         instruction->g_vIndex(),
-                                                         CFT_NORMAL));
-
-                    // phi is the predecessor for this instruction
-                    vertex_predecessors[instruction->g_vIndex()].clear();
-                    vertex_predecessors[instruction->g_vIndex()].push_back(phi);
-                }
-            }
-
-            // operand written gets a new SSA
-            Operand * operand = flatIns->operand_written();
-            if ((operand != NULL) && (operand->g_ssa() == 0)) {
-                changed = true;
-                operand->s_ssa(spicyQueso_new_ssa(ssa, operand->g_name()));
-                localSsa[operand->g_name()] = operand->g_ssa();
-            }
-        }
-
-        // if something changed, we add children back to the queue
-        if (true) {//changed) {
-            std::list <GraphEdge *> successors = instruction->g_successors();
-            std::list <GraphEdge *> :: iterator geit;
-            for (geit = successors.begin(); geit != successors.end(); geit++) {
-                QuesoEdge * quesoEdge = dynamic_cast<QuesoEdge *>(*geit);
-                uint64_t vIndex = quesoEdge->g_tail()->g_vIndex();
-                if (queue_set.count(vIndex) == 0) {
-                    //printf("adding %llx to queue\n", vIndex);
-                    // add node to queue based on number of predecessors
-                    if (quesoGraph->g_vertex(vIndex)->g_predecessors().size() > 1)
-                        queue_multiple_predecessors.push(vIndex);
-                    else
-                        queue.push(vIndex);
-                    queue_set.insert(vIndex);
-                }
-                //else
-                    //printf("not adding %llx to queue\n", vIndex);
             }
         }
     }
@@ -481,9 +127,10 @@ void ssa2_blocks (QuesoGraph * quesoGraph,
 }
 
 
-std::list <Operand *> ssa2_predecessor_get (Instruction * instruction,
-                                            Operand * operand) {
-    std::list <Operand *> result;
+// instruction must be a graph vertex
+std::list <PhiOperand *> ssa2_predecessor_get (Instruction * instruction,
+                                               Operand * operand) {
+    std::list <PhiOperand *> result;
     std::set  <uint64_t> touched;
 
     std::queue <Instruction *> queue;
@@ -505,15 +152,15 @@ std::list <Operand *> ssa2_predecessor_get (Instruction * instruction,
         std::list <Instruction *> flattened = instruction->flatten();
         std::list <Instruction *> :: reverse_iterator rit;
         for (rit = flattened.rbegin(); rit != flattened.rend(); rit++) {
-            Instruction * instruction = (*rit);
+            Instruction * flatIns = (*rit);
 
-            Operand * operand_written = instruction->operand_written();
+            Operand * operand_written = flatIns->operand_written();
 
             if (operand_written == NULL)
                 continue;
 
             if (operand_written->g_name() == operand->g_name()) {
-                result.push_back(operand_written);
+                result.push_back(new PhiOperand(instruction->g_vIndex(), operand_written));
                 operand_found = true;
                 break;
             }
@@ -548,34 +195,43 @@ void ssa2_predecessors (QuesoGraph * quesoGraph,
 
         Instruction * instruction = (Instruction *) it->second;
 
+        // for each instruction
         std::list <Instruction *> flattened = instruction->flatten();
         std::list <Instruction *> :: iterator iit;
         for (iit = flattened.begin(); iit != flattened.end(); iit++) {
 
             Instruction * flatins = (Instruction *) (*iit);
 
+            // check the read operands (written operands should already have SSA)
+            // applied
             std::list <Operand *> operands_read = flatins->operands_read();
             std::list <Operand *> :: iterator oit;
             for (oit = operands_read.begin(); oit != operands_read.end(); oit++) {
                 Operand * operand = (Operand *) (*oit);
 
+                // constant, skip
                 if (operand->g_type() == CONSTANT)
                     continue;
 
+                // != 0 means SSA already set
                 if (operand->g_ssa() != 0)
                     continue;
 
-                std::list <Operand *> operands = ssa2_predecessor_get(instruction, operand);
+                // fetch a list of all possible values for this operand from
+                // predecessor instructions
+                std::list <PhiOperand *> operands = ssa2_predecessor_get(instruction, operand);
 
+                // there are no possible values from predecessors
                 if (operands.size() == 0)
                     continue;
 
+                // just one possibility, borrow it's SSA value
                 else if (operands.size() == 1)
-                    operand->s_ssa(operands.front()->g_ssa());
+                    operand->s_ssa(operands.front()->g_operand()->g_ssa());
 
+                // multiple values. we need to merge them in a phi instruction
                 else {
-                    Operand * tmp = operand->copy();
-                    
+                    // set the ssa value for thie operand
                     if (ssa[operand->g_name()] == 0)
                         ssa[operand->g_name()] = 1;
                     else
@@ -583,19 +239,16 @@ void ssa2_predecessors (QuesoGraph * quesoGraph,
 
                     operand->s_ssa(ssa[operand->g_name()]);
 
-                    tmp->s_ssa(ssa[operand->g_name()]);
+                    // create the phi instruction
+                    InstructionPhi * phi = new InstructionPhi(operand);
 
-                    InstructionPhi * phi = new InstructionPhi(tmp);
-
-                    delete tmp;
-
-                    std::list <Operand *> :: iterator oit;
+                    // set the source operands
                     phi->set_src(operands);
 
                     // add phi into the graph
                     quesoGraph->absorbInstruction(phi);
 
-                    // add edges to phi, and delete original edge
+                    // add edges to phi, and delete original edges
                     std::list <GraphEdge *> predecessors = instruction->g_predecessors();
                     std::list <GraphEdge *> :: iterator git;
                     for (git = predecessors.begin(); git != predecessors.end(); git++) {
@@ -747,6 +400,7 @@ void SpicyQueso :: dead_code_elimination (QuesoGraph * quesoGraph) {
 
     // liveVariables are variable we want to keep live, even if they are never
     // read, as they exit the graph
+    printf("find live variables\n");
     std::set <std::string> liveVariables = SpicyQueso::find_live_variables(quesoGraph);
 
     /*
@@ -819,9 +473,9 @@ void SpicyQueso :: dead_code_elimination (QuesoGraph * quesoGraph) {
                 continue;
 
             instruction->remove_depth_instructions(to_delete);
-            break;
-
         }
+
+        printf("pass deleted %lld\n", pass_deleted);
     }
 }
 
@@ -839,6 +493,8 @@ std::set <std::string> SpicyQueso :: find_live_variables (QuesoGraph * quesoGrap
     // successors, here. we need the data later, and doing it here avoids
     // and additional pass
     std::list <uint64_t> noSuccessors;
+
+    printf("1\n");
 
     std::map <uint64_t, GraphVertex *> :: iterator mit;
     for (mit  = quesoGraph->g_vertices().begin();
@@ -875,6 +531,7 @@ std::set <std::string> SpicyQueso :: find_live_variables (QuesoGraph * quesoGrap
             noSuccessors.push_back(vIndex);
     }
 
+    printf("2\n");
     // propagate these variables forward
     std::set <uint64_t> propagated;
 
@@ -901,6 +558,7 @@ std::set <std::string> SpicyQueso :: find_live_variables (QuesoGraph * quesoGrap
             for (it = predecessors.begin(); it != predecessors.end(); it++) {
                 uint64_t predecessor_vIndex = (*it)->g_head()->g_vIndex();
 
+                // handle cycles
                 if (predecessor_vIndex == vIndex)
                     continue;
 
@@ -915,6 +573,7 @@ std::set <std::string> SpicyQueso :: find_live_variables (QuesoGraph * quesoGrap
             if (predecessorsSet == false)
                 continue;
 
+            propagated.insert(vIndex);
             for (it = predecessors.begin(); it != predecessors.end(); it++) {
                 uint64_t predecessor_vIndex = (*it)->g_head()->g_vIndex();
 
@@ -930,6 +589,7 @@ std::set <std::string> SpicyQueso :: find_live_variables (QuesoGraph * quesoGrap
         }
     }
 
+    printf("3\n");
     // find all vertices with no successors
     std::set <std::string> result;
     std::list <uint64_t> ::iterator noSucIt;
@@ -1567,14 +1227,105 @@ QuesoGraph * SpicyQueso :: shadowGraph (QuesoGraph * quesoGraph) {
                 operandName << "v" << (*dit);
                 // add the direct predecessor based on its occurence in trues
                 if (trues.count(*dit) == 1) {
-                    conjunction.insert(new OperandShadow(operandName.str(), true));
+                    conjunction.insert(new OperandShadow(operandName.str(), TRUE));
                 }
                 else {
-                    conjunction.insert(new OperandShadow(operandName.str(), false));
+                    conjunction.insert(new OperandShadow(operandName.str(), FALSE));
                 }
             }
             instructionShadow->addConjunction(conjunction);
         }
+
+        // add shadow instruction to the graph
+        shadowGraph->absorbInstruction(instructionShadow, vIndex);
+    }
+
+    // add all the graph edges to shadow graph
+    for (mit = quesoGraph->g_vertices().begin();
+         mit != quesoGraph->g_vertices().end();
+         mit++) {
+        std::list <GraphEdge *> successors = mit->second->g_successors();
+        std::list <GraphEdge *> :: iterator it;
+        for (it = successors.begin(); it != successors.end(); it++) {
+            GraphEdge * graphEdge = *it;
+            shadowGraph->absorbEdge(new QuesoEdge(shadowGraph,
+                                                  graphEdge->g_head()->g_vIndex(),
+                                                  graphEdge->g_tail()->g_vIndex(),
+                                                  CFT_NORMAL));
+        }
+    }
+
+    return shadowGraph;
+}
+
+
+std::string shadowGraphVertexName (uint64_t vIndex) {
+    std::stringstream ss;
+    ss << "v" << vIndex;
+    return ss.str();
+}
+
+
+QuesoGraph * SpicyQueso :: shadowGraph2 (QuesoGraph * quesoGraph) {
+    QuesoGraph * shadowGraph = new QuesoGraph();
+
+    std::map <uint64_t, std::set <uint64_t>> dom_map  = dominator_map(quesoGraph);
+    std::map <uint64_t, std::set <uint64_t>> pred_map = predecessor_map(quesoGraph);
+    std::map <uint64_t, uint64_t> idom_map = idominator_map(quesoGraph, dom_map);
+
+    std::map <uint64_t, GraphVertex *> ::iterator mit;
+    // for every vertex in the graph
+    for (mit = quesoGraph->g_vertices().begin();
+         mit != quesoGraph->g_vertices().end();
+         mit++) {
+        Instruction * vertex = (Instruction *) mit->second;
+        uint64_t vIndex = mit->first;
+
+        // get all direct predecessors
+        std::list <GraphEdge *> predecessors = vertex->g_predecessors();
+
+        // create a set of all direct predecessors of vertex
+        std::set <uint64_t> directPredecessors;
+        std::list <GraphEdge *> :: iterator pit;
+        for (pit = predecessors.begin(); pit != predecessors.end(); pit++) {
+            directPredecessors.insert((*pit)->g_head()->g_vIndex());
+        }
+
+        // instruction for this vertex
+
+        Variable * dst = new Variable(1, shadowGraphVertexName(vIndex));
+        InstructionShadow * instructionShadow = new InstructionShadow(dst);
+
+        // for each direct predecessor
+        for (std::set <uint64_t> :: iterator it = directPredecessors.begin();
+             it != directPredecessors.end();
+             it++) {
+            uint64_t dp1 = *it;
+            // conjunction for this direct predecessor
+            std::set <OperandShadow *> conjunction;
+            conjunction.insert(new OperandShadow(shadowGraphVertexName(dp1), IFF, dst));
+            // for every other vertex
+            std::set <uint64_t> :: iterator iit;
+            for (iit = directPredecessors.begin();
+                 iit != directPredecessors.end();
+                 iit++) {
+                uint64_t dp2 = *iit;
+                if (dp1 == dp2)
+                    continue;
+
+                if (pred_map[dp1].count(dp2) > 0)
+                    continue;
+
+                if (dom_map[dp1].count(dp2) > 0)
+                    conjunction.insert(new OperandShadow(shadowGraphVertexName(dp2), TRUE));
+                else
+                    conjunction.insert(new OperandShadow(shadowGraphVertexName(dp2), FALSE));
+            }
+
+            instructionShadow->addConjunction(conjunction);
+        }
+
+        delete dst;
 
         // add shadow instruction to the graph
         shadowGraph->absorbInstruction(instructionShadow, vIndex);

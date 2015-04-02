@@ -12,7 +12,7 @@ FLAGS = '-O2 -std=c++11 -g -pg'
 #LIB = '-ludis86 -L/usr/local/lib -lSDL2main -lSDL2 -lSDL2_ttf'
 LIB = '-ludis86 -L/usr/local/lib'
 CYGWIN = '-lcygwin -mwindows'
-LINUX = '-llua5.2 -ljansson'
+LINUX = '-llua -ljansson'
 
 sourceFiles = []
 
@@ -63,7 +63,7 @@ def build (flags) :
 
     # build lqueso.so
     cmd = ' '.join([COMPILER, \
-                    '-shared -fPIC -o lqueso.so', \
+                    '-fPIC -shared -o lqueso.so', \
                     ' '.join(map(lambda x: x['obj'], sourceFiles)), \
                     LIB, \
                    ])

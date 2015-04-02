@@ -2,15 +2,9 @@
 #define lua_HEADER
 
 extern "C" {
-#ifdef CYGWIN
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
-#else
-#include <lua5.2/lua.h>
-#include <lua5.2/lualib.h>
-#include <lua5.2/lauxlib.h>
-#endif
 }
 
 #include <memory>
@@ -59,6 +53,7 @@ int lqueso_instruction_address                  (lua_State * L);
 int lqueso_instruction_value                    (lua_State * L);
 int lqueso_instruction_dst                      (lua_State * L);
 int lqueso_instruction_condition                (lua_State * L);
+int lqueso_instruction_phiOperands              (lua_State * L);
 
 Operand * lqueso_operand_check (lua_State * L, int position);
 int lqueso_operand_push    (lua_State * L, const Operand * operand);
@@ -92,6 +87,7 @@ QuesoGraph * lqueso_quesoGraph_check (lua_State * L, int position);
 int lqueso_quesoGraph_absorb                  (lua_State * L, QuesoGraph * quesoGraph);
 int lqueso_quesoGraph_gc                      (lua_State * L);
 int lqueso_quesoGraph_dotGraph                (lua_State * L);
+int lqueso_quesoGraph_dotGraphVIndex          (lua_State * L);
 int lqueso_quesoGraph_g_vertices              (lua_State * L);
 int lqueso_quesoGraph_ssa                     (lua_State * L);
 int lqueso_quesoGraph_smtlib2Declarations     (lua_State * L);
@@ -104,6 +100,7 @@ int lqueso_quesoGraph_dead_code_elimination   (lua_State * L);
 int lqueso_quesoGraph_constant_fold_propagate (lua_State * L);
 int lqueso_quesoGraph_replace_operand         (lua_State * L);
 int lqueso_quesoGraph_shadowGraph             (lua_State * L);
+int lqueso_quesoGraph_shadowGraph2            (lua_State * L);
 int lqueso_quesoGraph_absorbInstruction       (lua_State * L);
 int lqueso_quesoGraph_addEdge                 (lua_State * L);
 

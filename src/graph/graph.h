@@ -66,7 +66,7 @@ class GraphVertex {
             this->vIndex = vIndex;
         }
 
-        uint64_t g_vIndex () { return vIndex; }
+        uint64_t g_vIndex () const { return vIndex; }
 
         void removeEdge (GraphEdge * edge);
         void insertEdge (GraphEdge * edge);
